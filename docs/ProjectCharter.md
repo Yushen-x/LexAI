@@ -1,21 +1,23 @@
-RBS
+# LexAI Project Charter
 
-The Responsibility Breakdown Structure (RBS) clarifies the responsibilities of each module and sub-task, ensuring that each team member's duties are clear and measurable, avoiding overlaps or ambiguities, and optimizing project management efficiency. It helps the team define task objectives, enhance collaboration quality, and ensure that the project is completed on time with high quality. In this project, each work package is assigned to one primary owner with one supporting member to guarantee accountability and delivery continuity. The project responsibilities are mainly focused on three aspects: large language model optimization, text processing features, and multi-role collaboration.
+## RBS (Responsibility Breakdown Structure)
 
-Large Language Model Optimization (LLM Optimization)
+### Overview
+The Responsibility Breakdown Structure (RBS) clarifies the responsibilities of each module and sub-task, ensuring that each team member's duties are clear, avoiding overlaps or ambiguities, and optimizing project management. It helps the team define task objectives, enhance collaboration efficiency, and ensure that the project is completed on time and with high quality. Through RBS, the project can effectively monitor progress, make timely adjustments, and ensure that key modules receive sufficient attention, driving smooth project progress.  
 
-- Model Training and Fine-tuning: Primary Owner: 胡宝怡 (Member, 2353409); Support: 肖相宇 (Leader, 2351110). Responsible for dataset preparation, training pipeline setup, hyperparameter tuning, and model quality evaluation to improve task adaptability and generation quality.
-- Inference Speed Optimization: Primary Owner: 肖相宇 (Leader, 2351110); Support: 林琪 (Member, 2352609). Responsible for optimizing inference latency through parallel processing, caching strategy, and resource scheduling to improve response efficiency.
-- High Concurrency Processing Architecture Design: Primary Owner: 肖相宇 (Leader, 2351110); Support: 达思睿 (Member, 2352288). Responsible for architecture design under high load, including service decomposition, load balancing strategy, and stability validation in stress scenarios.
+The project requirements are mainly focused on three aspects: large language model optimization, text processing features, and multi-role collaboration.
 
-Text Processing Features
+### 1. Large Language Model Optimization (LLM Optimization)
+- Model Training and Fine-tuning: Led by 胡宝怡 (2353409), supported by 肖相宇 (2351110). This work focuses on training and fine-tuning the legal large language model to improve domain adaptability, legal reasoning consistency, and task performance.
+- Inference Speed Optimization: Led by 肖相宇 (2351110), supported by 林琪 (2352609). This work improves inference speed through parallel processing and resource scheduling optimization to deliver faster system response.
+- High Concurrency Processing Architecture Design: Led by 肖相宇 (2351110), supported by 达思睿 (2352288). This work designs a stable high-concurrency architecture with load balancing and scalable service decomposition for high request throughput.
 
-- Title and Summary Generation: Primary Owner: 达思睿 (Member, 2352288); Support: 胡宝怡 (Member, 2353409). Responsible for designing and implementing title generation and summary extraction logic to ensure concise, accurate, and readable outputs.
-- Batch File Processing: Primary Owner: 林琪 (Member, 2352609); Support: 达思睿 (Member, 2352288). Responsible for multi-format file ingestion and batch task orchestration to improve large-scale processing efficiency and system compatibility.
-- Manual Editing and Proofreading Support: Primary Owner: 林琪 (Member, 2352609); Support: 肖相宇 (Leader, 2351110). Responsible for editable output workflow, proofreading support functions, and usability optimization to improve text accuracy and completeness.
+### 2. Text Processing Features
+- Title and Summary Generation: Led by 达思睿 (2352288), supported by 胡宝怡 (2353409). This work develops title generation and summary extraction capabilities for concise and accurate legal text outputs.
+- Batch File Processing: Led by 林琪 (2352609), supported by 达思睿 (2352288). This work builds a batch processing module for multi-format files to improve large-scale processing efficiency.
+- Manual Editing and Proofreading Support: Led by 林琪 (2352609), supported by 肖相宇 (2351110). This work provides editable and proofreadable output workflows to ensure content accuracy and completeness.
 
-Multi-role Collaboration
-
-- Role Management and Permission Assignment: Primary Owner: 林琪 (Member, 2352609); Support: 肖相宇 (Leader, 2351110). Responsible for role model design, permission boundaries, and access control implementation to ensure secure and responsibility-based operations.
-- Review Process Functionality: Primary Owner: 肖相宇 (Leader, 2351110); Support: 达思睿 (Member, 2352288). Responsible for multi-round approval workflow design, review-node configuration, and traceability to ensure process compliance and execution accuracy.
-- User Interaction Design: Primary Owner: 达思睿 (Member, 2352288); Support: All Members. Responsible for interaction flow design, interface clarity, and feedback optimization to improve collaboration smoothness and multi-role user experience.
+### 3. Multi-role Collaboration
+- Role Management and Permission Assignment: Led by 林琪 (2352609), supported by 肖相宇 (2351110). This work designs role-based access and permission boundaries for secure, responsibility-based operations.
+- Review Process Functionality: Led by 肖相宇 (2351110), supported by 达思睿 (2352288). This work implements multi-round approval workflows to ensure standardized review execution and process traceability.
+- User Interaction Design: Led by 达思睿 (2352288), supported by all members. This work optimizes interaction flow and interface usability to improve multi-role collaboration efficiency.
