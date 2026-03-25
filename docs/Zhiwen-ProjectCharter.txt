@@ -1,0 +1,299 @@
+RBS
+The Responsibility Breakdown Structure (RBS) clarifies the responsibilities of
+each module and sub-task, ensuring that each team member's duties are clear,
+avoiding overlaps or ambiguities, thus optimizing project management. It helps
+the team define task objectives, enhance collaboration efficiency, and ensures
+that the project is completed on time and with high quality. Through RBS, the
+project can effectively monitor progress, make timely adjustments, and ensure
+that key modules receive sufficient attention, driving the smooth progress of the
+project. The project requirements are mainly focused on three aspects: large
+language model optimization, text processing features, and multi-role
+collaboration.
+
+
+Large Language Model Optimization (LLM Optimization)
+
+   Model Training and Fine-tuning: The project will first train the large language
+    model and fine-tune its parameters to ensure the model better adapts to
+    specific task requirements, improving generalization and task performance.
+   Inference Speed Optimization: The project will focus on improving the model's
+    inference speed by optimizing parallel processing mechanisms and resource
+    management strategies, significantly increasing system response efficiency.
+   High Concurrency Processing Architecture Design: A high-efficiency
+    concurrency processing architecture will be designed, using distributed
+    computing and load balancing technologies to ensure the system runs stably
+    in high-concurrency scenarios and can efficiently handle large volumes of
+    requests.
+
+
+Text Processing Features
+
+   Title and Summary Generation: The project will develop extractive title and
+    summary generation functions, designing efficient title generation algorithms
+    and summary extraction algorithms to automatically extract key information
+    from text and generate concise and accurate titles and summaries.
+   Batch File Processing: A batch file processing module will be designed to
+    support batch processing of multiple file formats, significantly improving the
+    efficiency of large-scale text processing.
+   Manual Editing and Proofreading Support: Manual editing and proofreading
+    support features will be provided, along with a user-friendly interface that
+    allows users to perform manual editing and proofreading to ensure the
+    accuracy and completeness of text content.
+
+
+Multi-role Collaboration
+
+   Role Management and Permission Assignment: A flexible role management
+    system will be designed, supporting the configuration of different permission
+    levels to ensure that roles can access and operate system functions based on
+    their responsibilities.
+   Review Process Functionality: The project will develop a review process
+    feature that supports multi-round approval mechanisms, ensuring efficient
+    management of workflows and accurate execution of tasks.
+   User Interaction Design: Emphasis will be placed on user interaction design,
+    creating intuitive and user-friendly interfaces to optimize the experience for
+    multi-role users and enhance team collaboration efficiency and smoothness.
+
+
+
+
+WBS
+The Work Breakdown Structure (WBS) is a method of breaking down a project into
+smaller, manageable work units. It helps the project team refine specific work
+tasks and clarify each stage and step of the project. The WBS in this project covers
+the following core work areas, which are derived from the lowest-level
+requirements in the Requirements Breakdown Structure (RBS):
+
+Large Language Model Optimization (LLM Optimization)
+
+Model Training and Fine-tuning:
+The project will first train the large language model and fine-tune its parameters
+to ensure the model better adapts to specific task requirements, improving
+generalization and task performance.
+ Train the large model
+ Fine-tune parameters
+ Improve task adaptability
+ Review: Evaluate model performance and adjust hyperparameters
+ Test: Test model generalization on different tasks
+
+Inference Speed Optimization:
+The project will focus on improving the model's inference speed by optimizing
+parallel processing mechanisms and resource management strategies,
+significantly increasing system response efficiency.
+ Optimize parallel processing
+ Optimize resource management
+   Improve system response efficiency
+   Review: Monitor optimization effects and analyze bottlenecks
+   Test: Conduct stress testing to validate optimization results
+
+High Concurrency Processing Architecture Design:
+A high-efficiency concurrency processing architecture will be designed, using
+distributed computing and load balancing technologies to ensure the system runs
+stably in high-concurrency scenarios and can efficiently handle large volumes of
+requests.
+ Design concurrency architecture
+ Utilize distributed computing
+ Optimize load balancing
+ Review: Evaluate architecture design and adjust strategies
+ Test: Simulate high-concurrency scenarios to test system stability
+
+
+Text Processing Features
+
+Title and Summary Generation:
+The project will design extractive title and summary generation functions,
+creating efficient title generation and summary extraction algorithms to
+automatically extract key information and generate concise, accurate titles and
+summaries.
+ Design efficient title generation algorithms
+ Develop summary extraction algorithms
+ Automatically extract key information from text
+ Generate concise and accurate titles and summaries
+ Review: Evaluate the quality of generated titles and summaries, optimize
+     algorithms
+ Test: Test accuracy and readability across different text samples
+
+Batch File Processing:
+The project will implement a batch file processing module to support multiple file
+formats, significantly enhancing the efficiency of large-scale text processing.
+ Design a batch file processing module
+ Support batch processing of multiple file formats
+ Improve efficiency in large-scale text processing
+ Review: Assess the stability and compatibility of batch processing
+ Test: Conduct large-scale file processing tests to evaluate system performance
+
+Manual Editing and Proofreading Support:
+The project will provide manual editing and proofreading support with a
+user-friendly interface, allowing users to manually edit and proofread text to
+ensure accuracy and completeness.
+   Provide manual editing and proofreading support features
+   Design a user-friendly editing interface
+   Enable users to manually edit and proofread text
+   Ensure text accuracy and completeness
+   Review: Evaluate the usability of the user interface and editing functions
+   Test: Conduct user testing to ensure the effectiveness of editing and
+    proofreading features
+
+
+Multi-role Collaboration
+
+Role Management and Permission Assignment:
+A flexible role management system will be designed to support the configuration of
+different permission levels, ensuring that roles can access and operate system
+functions based on their responsibilities.
+ Design a flexible role management system
+ Configure different permission levels
+ Ensure roles can access system functions based on responsibilities
+ Review: Evaluate role configurations and permission settings
+ Test: Verify access control and permission enforcement across different roles
+
+Review Process Functionality:
+The project will develop a review process feature supporting multi-round approval
+mechanisms to ensure efficient workflow management and accurate task
+execution.
+ Develop a multi-round approval mechanism
+ Implement structured workflow management
+ Ensure accurate task execution through systematic review processes
+ Review: Assess workflow efficiency and approval accuracy
+ Test: Simulate multi-stage approval processes and validate functionality
+
+User Interaction Design:
+The project will focus on user interaction design, creating intuitive and
+user-friendly interfaces to enhance the experience for multi-role users and
+improve collaboration efficiency.
+ Design intuitive and user-friendly interfaces
+ Optimize user experience for multi-role interactions
+ Enhance team collaboration efficiency and smoothness
+ Review: Analyze usability and user satisfaction
+ Test: Conduct user testing to refine interaction flow and interface usability
+Gantt Chart
+
+The development process for the Zhiwen Intelligent Writing Platform is organized
+
+into several distinct phases, each focusing on a key aspect of the project lifecycle:
+
+
+
+Planning (2025-03-24 to 2025-03-31):
+
+The project kicks off with a thorough requirements gathering phase. During this
+
+period, the team collaborates to define project objectives, scope, and essential
+
+features, establishing a solid foundation for all subsequent work.
+
+
+
+System Design (2025-03-31 to 2025-04-08):
+
+In this phase, the overall system architecture is designed. Decisions regarding the
+
+technology stack, infrastructure requirements, and system components are made
+
+to ensure that the platform can support high-concurrency operations and
+
+large-scale data processing.
+
+
+
+Module Development (Starting 2025-04-08):
+
+Multiple modules are developed concurrently to expedite the project:
+
+   Intelligent Text Generation Module (2025-04-08 to 2025-05-05): Utilizes
+
+    GPT-2 to generate high-quality, long-form text with multiple output options.
+   Summary Extraction Module (2025-04-08 to 2025-05-05): Implements
+
+    techniques to extract key content and produce concise summaries.
+
+   Batch Text Processing Module (2025-04-15 to 2025-05-05): Handles large
+
+    volumes of file uploads (Word, TXT, ZIP) and automates text processing tasks.
+
+   Manual Editing & Review Module (2025-04-22 to 2025-05-10): Provides tools
+
+    for post-generation editing and quality assurance.
+
+   Multi-Role Management & Review Workflow (2025-04-22 to 2025-05-10):
+
+    Establishes collaborative processes to support various user roles (e.g.,
+
+    content creators, reviewers).
+
+
+
+Infrastructure Development (2025-04-08 to 2025-05-15):
+
+The backend and frontend of the platform are built in parallel:
+
+   Backend Development: Focuses on implementing GPU acceleration and
+
+    distributed deployment strategies using technologies like Flask, MySQL, and
+
+    Redis.
+
+   Frontend Development: Uses Vue.js and Ant Design to create an intuitive and
+
+    user-friendly interface.
+
+
+
+Integration and Testing (2025-05-06 to 2025-05-25):
+
+All modules are integrated and tested to ensure seamless interaction and system
+
+stability. This phase is crucial for identifying and resolving any inconsistencies or
+
+bugs before moving forward.
+
+
+
+Performance Optimization (2025-05-20 to 2025-06-01):
+
+Special attention is given to enhancing the platform’s performance by optimizing
+
+model inference and ensuring the system can handle high levels of concurrency
+
+effectively.
+Finalization and Deployment (2025-06-01 to 2025-06-15):
+
+The project concludes with final testing, bug fixing, and thorough documentation.
+
+Once these tasks are completed and verified, the platform is deployed, marking
+
+the successful launch on June 15.
+
+
+
+
+Critical Path Diagram
+     This critical path diagram meticulously illustrates the essential sequence of
+activities in the development and deployment of our web platform, revealing the
+dependencies between various project phases. Initially, the project commences
+with the requirements gathering phase, where the functional needs and objectives
+of the platform are clearly defined. This is followed by the system architecture
+design phase, which lays the foundation for the platform's overall structure.
+Subsequently, the process moves to the summary extraction phase, providing the
+core data support necessary for the platform.
+     The diagram further details the intelligent title generation phase, a crucial
+component for content generation on the platform, aiding in the dynamic creation
+of high-quality titles. Following this, the project progresses to the development of
+the backend user and file control modules, ensuring efficient management of user
+data and files. This is closely followed by the design and implementation of the
+backend manual review module, facilitating a smooth content review process. The
+platform's multi-role management module is also developed during this phase,
+ensuring personalized user experiences for different roles.
+     After completing the development of these key modules, the project enters the
+system integration phase, where the front-end, middle-end, and back-end
+systems are integrated to ensure seamless collaboration. Next, through model
+inference optimization, the platform's performance and efficiency are enhanced,
+ensuring stable operation even under high load conditions. Finally, the final
+testing and deployment phase involves comprehensive testing of the platform to
+ensure all functionalities work as expected, preparing the platform for launch.
+     This critical path diagram not only clearly demonstrates the temporal
+dependencies between each phase but also helps us identify the shortest path to
+project completion, providing robust support for rational project scheduling and
+timely delivery. Through this systematic path management, we can efficiently
+advance the development and deployment of the platform.
+
