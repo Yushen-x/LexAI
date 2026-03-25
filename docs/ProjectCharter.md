@@ -33,23 +33,25 @@ The four student members are the core platform-construction team. Pilot users, l
 
 LexAI is a school course project that explores how AI can support legal-service workflows in a controlled prototype setting. The project is built around the current growth in legal-service demand, the uneven distribution of professional support, and the opportunity created by large language models, retrieval-based methods, and structured output design.
 
+**This prototype is designed for Chinese civil law scenarios; all legal references, templates, and example cases are based on the PRC Civil Code and related domestic regulations, and are intended for academic demonstration purposes only.**
+
 ### 3.2 Description of the Challenge or Opportunity
 
 | Item | Description |
-| --- | --- |
-| Challenge 1 | Professional legal services remain unevenly distributed across regions and user groups. |
-| Challenge 2 | Individuals and small organizations often face high consultation and document-preparation costs. |
-| Challenge 3 | Legal work includes repetitive retrieval, drafting, and review tasks that are suitable for AI-assisted support. |
-| Opportunity | A course-project prototype can verify the feasibility of AI-assisted legal workflows before any broader deployment is considered. |
+|------|-------------|
+| Challenge 1 | Professional legal services remain unevenly distributed across regions and user groups within China. |
+| Challenge 2 | Individuals and small organizations often face high consultation and document-preparation costs under the current legal service landscape. |
+| Challenge 3 | Legal work includes repetitive retrieval, drafting, and review tasks that are suitable for AI-assisted support, particularly within the context of Chinese civil law. |
+| Opportunity | A course-project prototype can verify the feasibility of AI-assisted legal workflows for Chinese civil law scenarios before any broader deployment is considered. |
 
 ### 3.3 Overview of the Desired Impact
 
 | Impact Area | Desired Impact |
-| --- | --- |
-| Efficiency | Reduce the time required for representative legal consultation and drafting tasks. |
-| Quality | Improve the consistency and traceability of prototype-generated outputs. |
-| Demonstration | Deliver a usable campus-scale prototype covering legal consultation, case analysis, contract review, and selected document-generation workflows. |
-| Future Work | Build a reusable technical and evaluation foundation for later iterations. |
+|-------------|----------------|
+| Efficiency | Reduce the time required for representative legal consultation and drafting tasks based on Chinese civil law materials. |
+| Quality | Improve the consistency and traceability of prototype-generated outputs within the defined legal scope. |
+| Demonstration | Deliver a usable campus-scale prototype covering legal consultation, case analysis, contract review, and selected document-generation workflows, all aligned with Chinese civil law practice. |
+| Future Work | Build a reusable technical and evaluation foundation for later iterations, with the understanding that any expansion beyond Chinese civil law would require additional legal validation. |
 
 ## 4. Measurable Organizational Value (MOV)
 
