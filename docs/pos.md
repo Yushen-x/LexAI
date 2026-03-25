@@ -1,7 +1,7 @@
 # Project Overview: LexAI
 
 ## Project Name
-LexAI: an shemenshenme law system
+LexAI: an Intelligent Legal Assistance System
 
 ## Problem/Opportunity
 As China continues to deepen its commitment to the rule of law, the public demand for high-quality legal services has grown substantially. However, the current landscape faces significant challenges, including an uneven distribution of legal service resources, high costs for professional consultation, and an increasing volume of complex cases. Traditional legal service models are often limited in efficiency and accessibility, particularly regarding grassroots legal support. Simultaneously, the rapid advancement of artificial intelligence and large language models (LLMs) presents a transformative opportunity for "LegalTech". AI has demonstrated clear advantages in legal text comprehension, case analysis, and automated document generation, offering a technical foundation to overcome existing human resource constraints and reduce the risk of manual error.
@@ -19,9 +19,9 @@ The success of LexAI will be measured by its ability to deliver accurate, profes
 The project operates under the assumption that AI can be successfully trained to handle the high degree of professional rigor required in the legal field. However, significant risks include the potential for unpredictable AI outputs—often referred to as "hallucinations"—and the high computational demands required for processing complex legal data. Additionally, data privacy remains a paramount concern, as the system must handle sensitive legal information with absolute security. The project must also navigate the challenge of ensuring that the AI's knowledge base remains current with evolving laws and regulations, while addressing the inherent costs and technical complexities of maintaining an enterprise-grade AI platform.
 
 ## Prepared By
-- **Name:** HuBaoyi 2353409
-- **Date:** 2026/03/19
+- **Name:** Xiangyu Xiao,Qi Lin,Baoyi Hu,Sirui Da
+- **Date:** 2026/3/17
 
 ## Approved By
-- **Name:**
-- **Date:**
+- **Name:** Xiangyu Xiao
+- **Date:** 2026/3/18
