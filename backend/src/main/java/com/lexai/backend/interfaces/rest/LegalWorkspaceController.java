@@ -2,9 +2,11 @@ package com.lexai.backend.interfaces.rest;
 
 import com.lexai.backend.application.dto.request.CaseAnalysisRequest;
 import com.lexai.backend.application.dto.request.ConsultationRequest;
+import com.lexai.backend.application.dto.request.ContractDraftRequest;
 import com.lexai.backend.application.dto.request.ContractReviewRequest;
 import com.lexai.backend.application.dto.response.CaseAnalysisResponse;
 import com.lexai.backend.application.dto.response.ConsultationResponse;
+import com.lexai.backend.application.dto.response.ContractDraftResponse;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.service.LegalWorkspaceService;
 import com.lexai.backend.common.api.ApiResponse;
@@ -37,6 +39,11 @@ public class LegalWorkspaceController {
     @PostMapping("/contract-review")
     public ApiResponse<ContractReviewResponse> contractReview(@Valid @RequestBody ContractReviewRequest request) {
         return ApiResponse.success(legalWorkspaceService.handleContractReview(request));
+    }
+
+    @PostMapping("/contract-draft")
+    public ApiResponse<ContractDraftResponse> contractDraft(@Valid @RequestBody ContractDraftRequest request) {
+        return ApiResponse.success(legalWorkspaceService.handleContractDraft(request));
     }
 }
 
