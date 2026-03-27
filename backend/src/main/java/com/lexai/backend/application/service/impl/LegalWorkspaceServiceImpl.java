@@ -2,9 +2,11 @@ package com.lexai.backend.application.service.impl;
 
 import com.lexai.backend.application.dto.request.CaseAnalysisRequest;
 import com.lexai.backend.application.dto.request.ConsultationRequest;
+import com.lexai.backend.application.dto.request.ContractDraftRequest;
 import com.lexai.backend.application.dto.request.ContractReviewRequest;
 import com.lexai.backend.application.dto.response.CaseAnalysisResponse;
 import com.lexai.backend.application.dto.response.ConsultationResponse;
+import com.lexai.backend.application.dto.response.ContractDraftResponse;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.PlatformOverviewResponse;
 import com.lexai.backend.application.port.out.LegalReasoningGateway;
@@ -55,6 +57,11 @@ public class LegalWorkspaceServiceImpl implements LegalWorkspaceService {
     @Override
     public ContractReviewResponse handleContractReview(ContractReviewRequest request) {
         return legalReasoningGateway.reviewContract(request);
+    }
+
+    @Override
+    public ContractDraftResponse handleContractDraft(ContractDraftRequest request) {
+        return legalReasoningGateway.draftContract(request);
     }
 }
 
