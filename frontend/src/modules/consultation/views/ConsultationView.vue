@@ -91,7 +91,17 @@
           <!-- Detailed Columns -->
           <div class="result-grid">
             <div class="result-box">
-              <h4 class="result-box-title text-primary">法律依据</h4>
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="result-box-title text-primary">法律依据</h4>
+                <button 
+                  type="button"
+                  class="btn-copy-small text-xs"
+                  @click="copyLegalBasis"
+                  title="复制全部依据"
+                >
+                  📋
+                </button>
+              </div>
               <ul class="clean-list">
                 <li v-for="item in result.legalBasis" :key="item">{{ item }}</li>
               </ul>
@@ -193,6 +203,18 @@ function applyPreset(preset: { question: string; facts: string[] }) {
   form.question = preset.question;
   factsInput.value = preset.facts.join('，');
   result.value = null;
+}
+
+async function copyLegalBasis() {
+  if (!result.value?.legalBasis) return;
+  try {
+    const text = result.value.legalBasis.join('\n');
+    await navigator.clipboard.writeText(text);
+    alert('法律依据已复制到剪贴板');
+  } catch (error) {
+    console.error('复制失败:', error);
+    alert('复制失败，请重试');
+  }
 }
 
 async function handleSubmit() {
@@ -373,6 +395,39 @@ function resetForm() {
   position: absolute;
   left: 0;
   color: var(--text-muted);
+}
+
+.result-box-title {
+  font-size: 0.875rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-copy-small {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-copy-small:hover {
+  opacity: 1;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 
 .empty-state {

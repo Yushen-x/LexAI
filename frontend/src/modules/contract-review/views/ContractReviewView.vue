@@ -124,10 +124,20 @@
                       <strong class="text-muted text-xs uppercase tracking-wider block mb-1">风险释明</strong>
                       <p class="text-sm">{{ item.issue }}</p>
                     </div>
-                    <div class="risk-block mt-3">
-                      <strong class="text-success text-xs uppercase tracking-wider block mb-1">修改建议</strong>
-                      <p class="text-sm">{{ item.suggestion }}</p>
+                  <div class="risk-block mt-3">
+                    <strong class="text-success text-xs uppercase tracking-wider block mb-1">修改建议</strong>
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm flex-1">{{ item.suggestion }}</p>
+                      <button 
+                        type="button"
+                        class="btn-copy text-xs whitespace-nowrap ml-2"
+                        @click="copyRiskSuggestion(item.suggestion)"
+                        title="复制建议"
+                      >
+                        📋 复制
+                      </button>
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -202,6 +212,16 @@ function getRiskLevelLabel(level: string) {
   if (level === 'HIGH') return '高风险';
   if (level === 'MEDIUM') return '中风险';
   return '低风险';
+}
+
+async function copyRiskSuggestion(suggestion: string) {
+  try {
+    await navigator.clipboard.writeText(suggestion);
+    alert('修改建议已复制到剪贴板');
+  } catch (error) {
+    console.error('复制失败:', error);
+    alert('复制失败，请重试');
+  }
 }
 
 function applyPreset(preset: { contractTitle: string; contractContent: string }) {
@@ -420,6 +440,39 @@ function resetForm() {
   margin: 0;
   color: var(--text-main);
   line-height: 1.5;
+}
+
+.btn-copy {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.btn-copy:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-copy:active {
+  transform: scale(0.95);
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.ml-2 {
+  margin-left: 0.5rem;
 }
 
 .empty-state {

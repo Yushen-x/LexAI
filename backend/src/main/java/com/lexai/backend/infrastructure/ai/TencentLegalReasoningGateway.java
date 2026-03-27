@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lexai.backend.application.dto.request.CaseAnalysisRequest;
 import com.lexai.backend.application.dto.request.ConsultationRequest;
+import com.lexai.backend.application.dto.request.ContractDraftRequest;
 import com.lexai.backend.application.dto.request.ContractReviewRequest;
 import com.lexai.backend.application.dto.response.CaseAnalysisResponse;
 import com.lexai.backend.application.dto.response.ConsultationResponse;
+import com.lexai.backend.application.dto.response.ContractDraftResponse;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.ContractRiskItem;
 import com.lexai.backend.application.port.out.LegalReasoningGateway;
@@ -206,6 +208,227 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
                 "当前审查结果为“可用兜底”策略：已接入得理检索/本地知识库的上下文能力，但腾讯大模型调用未配置或解析失败时将使用规则化分析。"
         );
     }
+
+    @Override
+    public ContractDraftResponse draftContract(ContractDraftRequest request) {
+        String contractName = Optional.ofNullable(request.contractName()).orElse("未命名合同").trim();
+        String contractType = Optional.ofNullable(request.contractType()).orElse("标准合同").trim();
+        String partyA = Optional.ofNullable(request.partyA()).orElse("甲方").trim();
+        String partyB = Optional.ofNullable(request.partyB()).orElse("乙方").trim();
+        Double amount = request.amount() != null ? request.amount() : 0.0;
+        String duration = Optional.ofNullable(request.duration()).orElse("12个月").trim();
+        String requirements = Optional.ofNullable(request.requirements()).orElse("详见双方另行商定的明细表").trim();
+
+        // 先尝试调用大模型生成合同
+        String systemPrompt = DRAFT_SYSTEM_PROMPT;
+        String userPrompt = buildDraftUserPrompt(contractName, contractType, partyA, partyB, amount, duration, requirements);
+        String llmText = tencentLLMClient.chat(systemPrompt, userPrompt);
+        if (llmText != null) {
+            Optional<ContractDraftResponse> parsed = tryParseDraftResponse(llmText);
+            if (parsed.isPresent()) {
+                return parsed.get();
+            }
+        }
+
+        // 兜底：用模板生成合同（与 Mock 逻辑一致）
+        String generatedContent = generateContractTemplate(contractName, contractType, partyA, partyB, amount, duration, requirements);
+        
+        return new ContractDraftResponse(
+                generatedContent,
+                "已生成合同正文，请根据实际情况补充具体条款并进行法律审查。",
+                java.time.LocalDateTime.now()
+        );
+    }
+
+    private String buildDraftUserPrompt(
+            String contractName,
+            String contractType,
+            String partyA,
+            String partyB,
+            Double amount,
+            String duration,
+            String requirements
+    ) {
+        return """
+# 合同基本信息：
+合同名称：%s
+合同类型：%s
+甲方：%s
+乙方：%s
+合同金额：¥%s 元
+合同期限：%s
+核心需求：%s
+
+# 输出要求：
+生成一份完整的、符合中文法律文书规范的合同正文。
+合同应包含以下核心条款：
+1. 合同主体与标的
+2. 服务内容与范围
+3. 服务期限
+4. 费用与支付条款
+5. 双方权利义务
+6. 保密条款
+7. 违约责任
+8. 争议解决
+9. 其他条款
+
+返回的合同内容必须是完整的正文，包括标题、签署日期、甲乙方签名处等。
+确保合同表述准确、专业、符合法律规范。
+""".formatted(
+                contractName,
+                contractType,
+                partyA,
+                partyB,
+                amount,
+                duration,
+                requirements
+        );
+    }
+
+    private Optional<ContractDraftResponse> tryParseDraftResponse(String llmText) {
+        try {
+            // 合同内容通常是长文本，不是 JSON，所以直接返回
+            if (llmText != null && !llmText.trim().isEmpty()) {
+                String summary = generateSummary(llmText);
+                return Optional.of(new ContractDraftResponse(
+                        llmText,
+                        summary,
+                        java.time.LocalDateTime.now()
+                ));
+            }
+            return Optional.empty();
+        } catch (Exception ignore) {
+            return Optional.empty();
+        }
+    }
+
+    private String generateSummary(String contractContent) {
+        // 简单的摘要生成：取前300字 + "..."
+        if (contractContent == null) return "合同摘要：生成成功";
+        String trimmed = contractContent.replaceAll("\\s+", " ").trim();
+        if (trimmed.length() > 300) {
+            return trimmed.substring(0, 300) + "...";
+        }
+        return trimmed;
+    }
+
+    private String generateContractTemplate(
+            String contractName,
+            String contractType,
+            String partyA,
+            String partyB,
+            Double amount,
+            String duration,
+            String requirements
+    ) {
+        StringBuilder content = new StringBuilder();
+        content.append(contractName).append("\n\n");
+        content.append("本合同由以下各方于")
+                .append(java.time.LocalDate.now())
+                .append("签订：\n\n");
+
+        content.append("甲方（服务提供商）：").append(partyA).append("\n");
+        content.append("乙方（服务接收方）：").append(partyB).append("\n\n");
+
+        content.append("鉴于：\n");
+        content.append("甲方同意为乙方提供相关服务，乙方同意支付相应费用。双方在平等、自愿、协商一致的基础上，达成如下协议：\n\n");
+
+        content.append("第一条  服务内容与范围\n");
+        content.append("1.1 甲方向乙方提供相关的服务。具体服务内容为：")
+                .append(requirements)
+                .append("\n");
+        content.append("1.2 甲方承诺按照约定的时间、质量标准完成上述服务。\n\n");
+
+        content.append("第二条  服务期限\n");
+        content.append("2.1 合同服务期限为：").append(duration).append("\n");
+        content.append("2.2 合同签订之日为实际签署之日，自双方代表签仪式立即生效。\n\n");
+
+        content.append("第三条  费用与支付\n");
+        content.append("3.1 乙方应向甲方支付费用总额为：¥").append(amount).append("元（大写：")
+                .append(convertToChineseCurrency(amount)).append("元整）\n");
+        content.append("3.2 乙方应在以下时间节点完成付款：\n");
+        content.append("  - 签订合同时：支付总费用的30%，计¥").append(Math.round(amount * 30 / 100)).append("元\n");
+        content.append("  - 服务交付完成时：支付剩余70%，计¥").append(Math.round(amount * 70 / 100)).append("元\n");
+        content.append("3.3 付款方式：银行转账至甲方指定账户\n");
+        content.append("3.4 如乙方逾期支付，应按日利率0.05‰支付逾期利息\n\n");
+
+        content.append("第四条  双方权利与义务\n");
+        content.append("4.1 甲方的权利与义务：\n");
+        content.append("  (1) 有权审查乙方提供的资料完整性\n");
+        content.append("  (2) 有义务严格履行合同义务，确保服务质量\n");
+        content.append("  (3) 有义务按时完成服务工作\n\n");
+        content.append("4.2 乙方的权利与义务：\n");
+        content.append("  (1) 有权对甲方的服务质量进行监督\n");
+        content.append("  (2) 有义务按时支付相应费用\n");
+        content.append("  (3) 有义务提供必要的协作信息和资源\n\n");
+
+        content.append("第五条  保密条款\n");
+        content.append("5.1 双方对在履行本合同过程中获知的商业秘密承诺保密\n");
+        content.append("5.2 保密义务在本合同终止后继续有效，期限为5年\n");
+        content.append("5.3 因不可抗力或法律强制要求披露除外\n\n");
+
+        content.append("第六条  违约责任\n");
+        content.append("6.1 甲方逾期完成服务，每逾期一天按合同总价的0.1%支付违约金，逾期超30天乙方有权单方解除合同\n");
+        content.append("6.2 乙方逾期支付费用，每逾期一天按未付金额的0.1%支付违约金\n");
+        content.append("6.3 任何一方因违反合同条款给对方造成损失的，应赔偿对方的实际损失\n\n");
+
+        content.append("第七条  争议解决\n");
+        content.append("7.1 本合同的履行、解释和争议解决均受中华人民共和国法律管辖\n");
+        content.append("7.2 双方发生争议时，首先应进行友好协商解决\n");
+        content.append("7.3 协商不成的，双方同意提交至合同签订地人民法院诉讼解决\n\n");
+
+        content.append("第八条  其他条款\n");
+        content.append("8.1 本合同一式两份，甲乙双方各持一份，具有同等法律效力\n");
+        content.append("8.2 未经双方书面协议，本合同不得以任何方式修改或变更\n");
+        content.append("8.3 本合同条款如有违反法律规定，该条款无效，但不影响其他条款的效力\n\n");
+
+        content.append("甲方（服务提供商）：_____________　　　　乙方（服务接收方）：_____________\n");
+        content.append("签署日期：_____________　　　　　　　　签署日期：_____________\n");
+
+        return content.toString();
+    }
+
+    private String convertToChineseCurrency(Double amount) {
+        if (amount == null || amount == 0) return "零";
+        
+        long intPart = Math.round(amount);
+        String[] units = {"", "十", "百", "千", "万", "十", "百", "千", "亿"};
+        String[] digits = {"零", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
+        
+        String intStr = String.valueOf(intPart);
+        StringBuilder result = new StringBuilder();
+        int len = intStr.length();
+        
+        for (int i = 0; i < len; i++) {
+            int digit = Character.getNumericValue(intStr.charAt(i));
+            int unitIndex = len - i - 1;
+            
+            if (digit == 0) {
+                if (unitIndex > 0 && unitIndex % 4 == 0) {
+                    result.append("万");
+                }
+                continue;
+            }
+            
+            if (unitIndex % 4 == 0 && unitIndex > 0) {
+                result.append("万");
+            }
+            
+            result.append(digits[digit]);
+            if (unitIndex % 4 > 0) {
+                result.append(units[unitIndex % 4]);
+            }
+        }
+        
+        return result.toString();
+    }
+
+    private static final String DRAFT_SYSTEM_PROMPT = """
+你是一名拥有15年执业经验的中国律师，擅长合同起草。
+你必须生成符合中文法律文书规范的完整合同正文。
+合同应包含标准的法律条款，表述专业、准确、严谨。
+不要输出 JSON，而是输出完整的合同文本。
+""";
 
     private static final String CONSULT_SYSTEM_PROMPT = """
 你是一名拥有15年执业经验的中国律师，擅长劳动法、合同法、侵权责任法。

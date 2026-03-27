@@ -19,11 +19,8 @@
         <button class="btn btn-secondary mr-3" @click="toggleSidebar">
           <span class="icon">🤖</span> {{ aiSidebarVisible ? '收拢助手' : '呼出助手' }}
         </button>
-        <button class="btn btn-secondary mr-3" @click="saveDraft" :disabled="isSavingDraft">
-          {{ isSavingDraft ? '保存中...' : '存草稿' }}
-        </button>
         <button class="btn btn-primary" @click="submitForReview" :disabled="isSubmitting">
-          <span class="icon">✨</span> {{ isSubmitting ? '提交中...' : '生成并提交审查' }}
+          <span class="icon">✨</span> {{ isSubmitting ? '生成中...' : '生成并提交审查' }}
         </button>
       </div>
     </div>
@@ -176,7 +173,6 @@ const chatFlowRef = ref<HTMLElement>();
 const aiSidebarVisible = ref(true);
 const aiMode = ref<'ASK' | 'AGENT'>('ASK');
 const isGenerating = ref(false);
-const isSavingDraft = ref(false);
 const isSubmitting = ref(false);
 const isAiProcessing = ref(false);
 const aiInput = ref('');
@@ -252,41 +248,85 @@ const sendAiMessage = async () => {
 };
 
 const generateAskResponse = (question: string): string => {
+  // 基于关键词提供专业建议（模板回复，用于兜底）
   const keywords = question.toLowerCase();
   
   if (keywords.includes('风险')) {
-    return '我已经检查了您提供的信息。主要风险包括：1. 付款条件不够明确；2. 违约责任需要细化；3. 争议解决机制需要补充。建议结合具体业务情况逐一完善。';
+    return '合同主要风险点：\n1. 付款条件不明确 → 建议明确付款期限、方式、发票要求\n2. 违约责任含糊 → 建议量化违约金比例或赔偿标准\n3. 交付/验收标准不清 → 建议附加具体收货验收规则\n4. 争议解决机制缺失 → 建议增加仲裁或诉讼条款\n5. 保密责任不对等 → 建议明确保密范围和期限\n\n您想重点讨论哪个？';
   }
   if (keywords.includes('条款')) {
-    return '关于合同条款，建议按以下结构组织：①合同主体与标的；②权利义务条款；③付款与交付条款；④违约责任；⑤争议解决方式。我可以帮您逐一补充。';
+    return '标准合同条款结构建议（按法律规范）：\n① 合同主体与标的 - 明确双方主体、服务内容或货物\n② 权利义务条款 - 详细列举双方的权利与义务\n③ 付款与交付 - 支付节点、金额、交付方式、验收标准\n④ 违约责任 - 违约金比例、赔偿范围、解除权\n⑤ 争议解决 - 适用法律、管辖法院/仲裁机构\n⑥ 其他条款 - 保密、知识产权、不可抗力等\n\n需要我为您补充某个具体条款吗？';
   }
   if (keywords.includes('保密')) {
-    return '保密条款应包含：保密范围、保密期限、保密义务人、违反后果、例外情况等内容。标准做法是保密期限设为5-10年。';
+    return '保密条款应包含以下要素：\n✓ 保密信息定义 - 明确哪些属于商业秘密\n✓ 保密范围 - 双方均受约束还是单向保密\n✓ 保密期限 - 建议5-10年（根据行业标准）\n✓ 排除情况 - 公知信息、法定披露、独立开发\n✓ 违反后果 - 违约金、赔偿责任、追究责任\n✓ 救济手段 - 可申请禁令或要求赔偿\n\n需要我为您补充保密条款吗？';
   }
   
-  return '感谢您的提问。基于您的合同信息，我给出如下建议：\n\n1. 进一步完善双方的权利义务\n2. 补充具体的付款和交付安排\n3. 明确违约责任和救济途径\n4. 添加争议解决机制\n\n请告诉我您想重点讨论哪个方面？';
+  return '我已阅读您的提问。可以帮助您：\n→ 分析合同风险点并提出防范方案\n→ 完善合同条款结构和法律描述\n→ 优化具体条款内容（付款、交付、违约等）\n→ 调整双方权利义务的平衡性\n\n请具体告诉我您想改进哪个方面！';
 };
 
 const generateAgentResponse = (instruction: string) => {
+  // 根据用户指令生成标准法律条款建议（模板回复）
   const lowerInstruction = instruction.toLowerCase();
   
-  if (lowerInstruction.includes('违约金') || lowerInstruction.includes('违约责任')) {
+  if (lowerInstruction.includes('违约金') || lowerInstruction.includes('违约') || lowerInstruction.includes('责任')) {
     return {
-      message: '已接受指令。我为您生成了符合标的额量级的违约责任条款，请核对。',
-      suggestedText: `第六条  违约责任\n6.1 甲方逾期完成服务，每逾期一天按合同总价的0.1%支付违约金，逾期超30天乙方有权单方解除合同\n6.2 乙方逾期支付费用，每逾期一天按未付金额的0.1%支付违约金\n6.3 任何一方因违反合同条款给对方造成损失的，应赔偿对方的实际损失`
+      message: '✅ 已为您生成标准违约责任条款，请核对后使用。',
+      suggestedText: `第六条  违约责任
+6.1 甲方违约：如甲方未按合同规定完成履约义务或交付标准不达要求，应按逾期天数向乙方支付违约金（建议按日0.1%-0.5%计算），逾期超过30天乙方有权单方面解除合同并要求赔偿损失。
+6.2 乙方违约：如乙方未按时支付合同款项，应按逾期天数支付相应违约金；如违反保密或其他重要义务，应承担相应法律责任。
+6.3 赔偿责任：任何一方因过错或违约给对方造成的直接经济损失，应在违约金之外足额赔偿。
+6.4 解除权：一方重大违约经通知后30日内仍未改正的，对方有权发出解除通知函，合同立即解除。`
     };
   }
   
-  if (lowerInstruction.includes('保密')) {
+  if (lowerInstruction.includes('保密') || lowerInstruction.includes('机密') || lowerInstruction.includes('知识产权')) {
     return {
-      message: '已为您补充保密条款，请核对内容是否符合业务需求。',
-      suggestedText: `第五条  保密与知识产权\n5.1 双方对在履行本合同过程中获知的商业秘密、技术信息承诺保密\n5.2 保密义务在本合同终止后继续有效，期限为5年\n5.3 因不可抗力或法律强制要求披露的情况除外\n5.4 本合同产生的知识产权归属按双方另行商定`
+      message: '✅ 已为您补充保密与知识产权条款，请核对内容。',
+      suggestedText: `第五条  保密与知识产权
+5.1 保密定义：双方对履行本合同过程中获知的商业秘密、技术方案、客户信息、财务数据等信息承诺严格保密。
+5.2 保密期限：保密义务在本合同终止后继续有效，期限为5年（如法律规定更长期限则按法律规定）。
+5.3 保密例外：根据法律强制要求必须披露、公知信息、独立开发信息、第三方已知信息除外。
+5.4 知识产权权属：本合同履行过程中产生的知识产权（包括专利、著作权、商业秘密等）的归属权和使用权按双方另行商定协议确定。
+5.5 违反后果：任何一方违反保密义务给对方造成损失的，应承担赔偿责任，特别严重情形下对方有权申请禁令。`
+    };
+  }
+
+  if (lowerInstruction.includes('付款') || lowerInstruction.includes('支付') || lowerInstruction.includes('价格')) {
+    return {
+      message: '✅ 已为您生成详细的付款条款，请确认修改。',
+      suggestedText: `第三条  费用与支付
+3.1 合同总价：人民币 ${contractForm.amount} 元整（大写：${Math.round(contractForm.amount / 10000)}万元，详见发票）
+3.2 支付安排：合同总价分阶段支付
+  - 签订合同时：支付总价的30%（¥${Math.round(contractForm.amount * 0.3)}元）
+  - 服务/商品交付时：支付总价的40%（¥${Math.round(contractForm.amount * 0.4)}元）
+  - 验收通过/使用满意期后：支付剩余30%（¥${Math.round(contractForm.amount * 0.3)}元）
+3.3 支付方式：银行转账汇款至乙方指定账户，以银行凭证为支付凭证
+3.4 发票：乙方应在收款后10日内按金额开具增值税发票
+3.5 逾期利息：甲方逾期支付，按日利率 0.05‰ 计算逾期利息并计入应付款项`
+    };
+  }
+
+  if (lowerInstruction.includes('交付') || lowerInstruction.includes('验收') || lowerInstruction.includes('交货')) {
+    return {
+      message: '✅ 已为您补充交付与验收条款，请核对。',
+      suggestedText: `第四条  交付与验收
+4.1 交付时间：${contractForm.duration || '12个月'}内完成交付（具体时间表详见附件）
+4.2 交付地点：乙方指定地点（含运输、安装等）或远程交付（根据商品性质）
+4.3 交付标准：交付的商品/服务应满足
+  - 符合国家相关法律法规和行业标准
+  - 符合合同约定的规格、数量、质量要求
+  - 包装完整，标识清晰
+4.4 验收流程：乙方收到交付物后 7 天内进行验收
+  - 验收合格：乙方签收确认，视为接受
+  - 有瑕疵：乙方通知甲方，甲方在 5 天内修复或重新交付
+  - 不符合要求：乙方有权拒收并要求退款
+4.5 风险转移：交付物交付乙方、乙方签收后，风险责任转移至乙方`
     };
   }
 
   return {
-    message: '已接受您的指令。我已为您调整了相关条款，请核对修改内容。',
-    suggestedText: `根据您的反馈，我已调整了合同条款。\n\n主要修改：\n- ${instruction}\n\n请查看左侧编辑区并进行最终确认。`
+    message: '📝 已收到您的修改指令，转化为标准法律条款。',
+    suggestedText: `【指令处理】"${instruction}"\n\n✓ 该修改建议已转化为符合法律标准的条款模板\n✓ 点击下方"应用修改"按钮将其添加到左侧编辑区\n✓ 您可以在编辑区进一步调整细节，或继续输入其他修改指令\n\n提示：每条指令可以反复调整，直到满足为止。`
   };
 };
 
@@ -306,46 +346,34 @@ const cancelAgentAction = (messageIdx: number) => {
   chatMessages.value.splice(messageIdx, 1);
 };
 
-const saveDraft = async () => {
-  if (!contractForm.name || !contractForm.content) {
-    alert('请输入合同名称和内容');
-    return;
-  }
-
-  isSavingDraft.value = true;
-
-  try {
-    localStorage.setItem(`contract_draft_${contractForm.name}`, JSON.stringify({
-      name: contractForm.name,
-      type: contractForm.type,
-      partyA: contractForm.partyA,
-      partyB: contractForm.partyB,
-      amount: contractForm.amount,
-      content: contractForm.content,
-      savedAt: new Date().toISOString()
-    }));
-
-    alert('草稿已保存！');
-  } catch (error) {
-    console.error('保存草稿失败:', error);
-    alert('保存失败，请重试');
-  } finally {
-    isSavingDraft.value = false;
-  }
-};
-
 const submitForReview = async () => {
-  if (!contractForm.name || !contractForm.content) {
-    alert('请先生成或输入合同内容');
+  if (!contractForm.name) {
+    alert('请输入合同名称');
     return;
   }
 
   isSubmitting.value = true;
 
   try {
-    sessionStorage.setItem('pendingContractContent', contractForm.content);
+    // 调用后端生成合同
+    const response = await submitContractDraft({
+      contractName: contractForm.name,
+      contractType: contractForm.type,
+      partyA: contractForm.partyA,
+      partyB: contractForm.partyB,
+      amount: contractForm.amount,
+      duration: contractForm.duration,
+      requirements: contractForm.requirements
+    });
+
+    // 将生成的合同内容填入编辑区
+    contractForm.content = response.generatedContent;
+
+    // 存储到sessionStorage用于审查页面
+    sessionStorage.setItem('pendingContractContent', response.generatedContent);
     sessionStorage.setItem('pendingContractName', contractForm.name);
 
+    // 跳转到审查页面
     router.push({
       name: 'ContractReview',
       query: {
@@ -353,8 +381,8 @@ const submitForReview = async () => {
       }
     });
   } catch (error) {
-    console.error('提交审查失败:', error);
-    alert('提交失败，请重试');
+    console.error('生成合同失败:', error);
+    alert('生成合同失败，请稍后重试或检查网络连接');
   } finally {
     isSubmitting.value = false;
   }

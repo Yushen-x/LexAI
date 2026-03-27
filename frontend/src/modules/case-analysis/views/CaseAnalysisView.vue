@@ -112,7 +112,17 @@
             </div>
 
             <div class="result-box box-success">
-              <h4 class="result-box-title text-success">后续建议动作</h4>
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="result-box-title text-success">后续建议动作</h4>
+                <button 
+                  type="button"
+                  class="btn-copy-small text-xs"
+                  @click="copySuggestedActions"
+                  title="复制全部建议"
+                >
+                  📋
+                </button>
+              </div>
               <ul class="clean-list">
                 <li v-for="item in result.suggestedActions" :key="item">{{ item }}</li>
               </ul>
@@ -171,15 +181,38 @@ function normalizeEvidence(raw: string) {
 const normalizedEvidence = computed(() => normalizeEvidence(evidenceInput.value));
 
 const evidenceCoverage = computed(() => {
-  const base = 38;
-  const increment = normalizedEvidence.value.length * 14;
-  return Math.min(96, base + increment);
+  // 基于AI返回的证据缺口数量动态计算覆盖率
+  if (!result.value) {
+    const base = 38;
+    const increment = normalizedEvidence.value.length * 14;
+    return Math.min(96, base + increment);
+  }
+  
+  // AI返回结果后，从证据缺口反推覆盖率
+  const evidenceGapCount = result.value.evidenceGaps?.length ?? 0;
+  const maxGaps = 5; // 假设最多5个缺口表示0覆盖
+  
+  // 缺口越少，覆盖率越高
+  const coverageRate = Math.max(40, Math.min(95, 100 - (evidenceGapCount * 12)));
+  return Math.round(coverageRate);
 });
 
 function applyPreset(preset: { summary: string; evidence: string[] }) {
   form.caseSummary = preset.summary;
   evidenceInput.value = preset.evidence.join('，');
   result.value = null;
+}
+
+async function copySuggestedActions() {
+  if (!result.value?.suggestedActions) return;
+  try {
+    const text = result.value.suggestedActions.join('\n');
+    await navigator.clipboard.writeText(text);
+    alert('建议动作已复制到剪贴板');
+  } catch (error) {
+    console.error('复制失败:', error);
+    alert('复制失败，请重试');
+  }
 }
 
 async function handleSubmit() {
@@ -342,10 +375,35 @@ function resetForm() {
 
 .result-box-title {
   font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.btn-copy-small {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-copy-small:hover {
+  opacity: 1;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 
 .clean-list {
