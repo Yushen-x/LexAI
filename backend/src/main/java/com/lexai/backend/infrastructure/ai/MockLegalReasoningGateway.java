@@ -16,8 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 @Component
+@ConditionalOnProperty(name = "lexai.ai.mode", havingValue = "mock", matchIfMissing = true)
 public class MockLegalReasoningGateway implements LegalReasoningGateway {
 
     @Override
