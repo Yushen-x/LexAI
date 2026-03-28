@@ -31,6 +31,11 @@ export async function fetchOverview() {
   return data.data;
 }
 
+export async function fetchHealth(): Promise<Record<string, string>> {
+  const { data } = await http.get<ApiResponse<Record<string, string>>>('/system/health');
+  return data.data;
+}
+
 export async function submitConsultation(payload: ConsultationRequest) {
   const { data } = await http.post<ApiResponse<ConsultationResponse>>('/legal/consultation', payload);
   return data.data;
