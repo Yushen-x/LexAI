@@ -146,6 +146,7 @@
 import { computed, reactive, ref } from 'vue';
 import { submitCaseAnalysis } from '@/shared/api/legal';
 import type { CaseAnalysisResponse } from '@/shared/types/legal';
+import { toast } from '@/shared/ui/toast';
 
 const form = reactive({
   caseSummary: '',
@@ -181,20 +182,18 @@ function normalizeEvidence(raw: string) {
 const normalizedEvidence = computed(() => normalizeEvidence(evidenceInput.value));
 
 const evidenceCoverage = computed(() => {
-  // 基于AI返回的证据缺口数量动态计算覆盖率
   if (!result.value) {
-    const base = 38;
-    const increment = normalizedEvidence.value.length * 14;
-    return Math.min(96, base + increment);
+    // 结果未返回时，仅按用户已填证据做一个保守估算
+    const present = normalizedEvidence.value.length;
+    return Math.min(95, Math.round(30 + present * 15));
   }
-  
-  // AI返回结果后，从证据缺口反推覆盖率
-  const evidenceGapCount = result.value.evidenceGaps?.length ?? 0;
-  const maxGaps = 5; // 假设最多5个缺口表示0覆盖
-  
-  // 缺口越少，覆盖率越高
-  const coverageRate = Math.max(40, Math.min(95, 100 - (evidenceGapCount * 12)));
-  return Math.round(coverageRate);
+
+  // 覆盖率 = 已掌握证据 /（已掌握证据 + AI识别缺口）
+  const present = normalizedEvidence.value.length;
+  const gaps = result.value.evidenceGaps?.length ?? 0;
+  const denom = present + gaps;
+  if (denom <= 0) return 0;
+  return Math.min(100, Math.round((present / denom) * 100));
 });
 
 function applyPreset(preset: { summary: string; evidence: string[] }) {
@@ -208,10 +207,10 @@ async function copySuggestedActions() {
   try {
     const text = result.value.suggestedActions.join('\n');
     await navigator.clipboard.writeText(text);
-    alert('建议动作已复制到剪贴板');
+    toast('建议动作已复制到剪贴板', 'success');
   } catch (error) {
     console.error('复制失败:', error);
-    alert('复制失败，请重试');
+    toast('复制失败，请重试', 'error');
   }
 }
 

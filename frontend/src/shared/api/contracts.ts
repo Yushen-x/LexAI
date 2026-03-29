@@ -9,6 +9,16 @@ export interface FetchContractsParams {
   size?: number;
 }
 
+export interface CreateContractRequest {
+  name: string;
+  contractType: string;
+  partyA: string;
+  partyB: string;
+  amount?: number;
+  source?: string;
+  status?: ContractStatus;
+}
+
 export async function fetchContracts(params: FetchContractsParams): Promise<ContractListResult> {
   const { data } = await http.get<ApiContractListResponse>('/contracts', {
     params: {
@@ -29,5 +39,10 @@ export async function getContract(id: number): Promise<ContractItem> {
 
 export async function updateContractStatus(id: number, status: ContractStatus): Promise<ContractItem> {
   const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}/status`, { status });
+  return data.data;
+}
+
+export async function createContract(payload: CreateContractRequest): Promise<ContractItem> {
+  const { data } = await http.post<ApiContractItemResponse>('/contracts', payload);
   return data.data;
 }

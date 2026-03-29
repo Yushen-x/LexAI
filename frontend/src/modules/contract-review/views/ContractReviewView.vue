@@ -116,7 +116,7 @@
                   :class="`risk-item-${item.level.toLowerCase()}`"
                 >
                   <div class="risk-item-header">
-                    <span class="risk-badge" :class="`badge-${item.level.toLowerCase()}`">{{ getRiskLevelLabel(item.level) }}</span>
+                    <span class="badge risk-badge" :class="getRiskBadgeClass(item.level)">{{ getRiskLevelLabel(item.level) }}</span>
                     <h5 class="risk-clause">原条款：{{ item.clause }}</h5>
                   </div>
                   <div class="risk-content mt-3">
@@ -158,9 +158,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { submitContractReview } from '@/shared/api/legal';
 import type { ContractReviewResponse } from '@/shared/types/legal';
+import { toast } from '@/shared/ui/toast';
 
 const form = reactive({
   contractTitle: '',
@@ -214,15 +215,32 @@ function getRiskLevelLabel(level: string) {
   return '低风险';
 }
 
+function getRiskBadgeClass(level: string) {
+  if (level === 'HIGH') return 'badge-danger';
+  if (level === 'MEDIUM') return 'badge-warning';
+  return 'badge-warning';
+}
+
 async function copyRiskSuggestion(suggestion: string) {
   try {
     await navigator.clipboard.writeText(suggestion);
-    alert('修改建议已复制到剪贴板');
+    toast('修改建议已复制到剪贴板', 'success');
   } catch (error) {
     console.error('复制失败:', error);
-    alert('复制失败，请重试');
+    toast('复制失败，请重试', 'error');
   }
 }
+
+onMounted(() => {
+  const pendingContent = sessionStorage.getItem('pendingContractContent');
+  const pendingName = sessionStorage.getItem('pendingContractName');
+  if (pendingContent && !form.contractContent.trim()) {
+    form.contractContent = pendingContent;
+  }
+  if (pendingName && !form.contractTitle.trim()) {
+    form.contractTitle = pendingName;
+  }
+});
 
 function applyPreset(preset: { contractTitle: string; contractContent: string }) {
   form.contractTitle = preset.contractTitle;

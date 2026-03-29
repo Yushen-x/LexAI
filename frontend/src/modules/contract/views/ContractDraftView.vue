@@ -3,24 +3,27 @@
     <!-- Header Controls -->
     <div class="draft-header mb-6">
       <div class="header-left">
-        <button class="btn btn-icon mr-4" @click="$router.back()" title="返回">
-          <span class="icon">🔙</span>
-        </button>
         <div class="title-wrapper">
           <input 
             v-model="contractForm.name" 
             class="title-input" 
             placeholder="请输入合同名称"
           />
-          <span class="badge badge-warning ml-3">合同智能起草模式</span>
+
         </div>
       </div>
       <div class="header-right">
         <button class="btn btn-secondary mr-3" @click="toggleSidebar">
-          <span class="icon">🤖</span> {{ aiSidebarVisible ? '收拢助手' : '呼出助手' }}
+          <span class="icon"></span> {{ aiSidebarVisible ? '收拢助手' : '呼出助手' }}
         </button>
-        <button class="btn btn-primary" @click="submitForReview" :disabled="isSubmitting">
-          <span class="icon">✨</span> {{ isSubmitting ? '生成中...' : '生成并提交审查' }}
+        <button class="btn btn-secondary mr-3" @click="saveDraft" :disabled="isSavingDraft">
+          <span class="icon"></span> {{ isSavingDraft ? '保存中...' : '存草稿' }}
+        </button>
+        <button class="btn btn-secondary mr-3" @click="submitForReview" :disabled="!contractForm.content.trim()">
+          <span class="icon"></span> 提交审查
+        </button>
+        <button class="btn btn-primary" @click="generateContract" :disabled="isGenerating">
+          <span class="icon">✨</span> {{ isGenerating ? '生成中...' : '生成合同' }}
         </button>
       </div>
     </div>
@@ -44,7 +47,7 @@
               <input type="text" class="form-input" v-model="contractForm.partyB" placeholder="输入合作方名称..." />
             </div>
             <div class="form-group">
-              <label>涉案标的额 (元)</label>
+              <label>合同金额 (元)</label>
               <input type="number" class="form-input font-mono" v-model="contractForm.amount" />
             </div>
             <div class="form-group">
@@ -66,10 +69,10 @@
             <h3 class="card-title text-sm">正文实时撰写区</h3>
             <div class="flex gap-2">
               <button class="btn-action text-xs" @click="copyContent" v-if="contractForm.content">
-                📋 复制全文
+                复制全文
               </button>
               <button class="btn-action text-xs" @click="downloadContent" v-if="contractForm.content">
-                ⬇️ 下载TXT
+                下载TXT
               </button>
               <span class="text-xs text-muted">支持双向同步与 AI 补写</span>
             </div>
@@ -112,24 +115,8 @@
           <!-- Generated messages will appear here -->
           <div v-for="(msg, idx) in chatMessages" :key="idx" class="chat-bubble" :class="msg.type === 'user' ? 'user-msg' : 'bot-msg'">
             <div v-if="msg.type === 'bot'" class="msg-avatar">Lex</div>
-            <div class="msg-content">
-              {{ msg.content }}
-              <div v-if="msg.agentAction" class="agent-preview mt-2">
-                <div class="preview-tag text-xs">{{ msg.agentAction.actionType }} 操作</div>
-                <div class="preview-text text-sm">{{ msg.agentAction.content }}</div>
-                <div class="flex justify-end mt-2">
-                  <span class="text-primary text-xs cursor-pointer hover-underline" @click="applyAgentAction(idx)">
-                    应用此修改
-                  </span>
-                  <span class="text-muted text-xs cursor-pointer hover-underline ml-3" @click="cancelAgentAction(idx)">
-                    撤销
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div v-if="msg.type === 'user'" class="msg-content-user">
-              {{ msg.content }}
-            </div>
+            <div v-if="msg.type === 'bot'" class="msg-content">{{ msg.content }}</div>
+            <div v-else class="msg-content-user">{{ msg.content }}</div>
           </div>
 
           <!-- Loading indicator -->
@@ -165,7 +152,9 @@
 <script setup lang="ts">
 import { ref, reactive, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { submitContractDraft } from '@/shared/api/legal';
+import { submitConsultation, submitContractDraft } from '@/shared/api/legal';
+import { createContract } from '@/shared/api/contracts';
+import { toast } from '@/shared/ui/toast';
 
 const router = useRouter();
 const chatFlowRef = ref<HTMLElement>();
@@ -173,17 +162,13 @@ const chatFlowRef = ref<HTMLElement>();
 const aiSidebarVisible = ref(true);
 const aiMode = ref<'ASK' | 'AGENT'>('ASK');
 const isGenerating = ref(false);
-const isSubmitting = ref(false);
+const isSavingDraft = ref(false);
 const isAiProcessing = ref(false);
 const aiInput = ref('');
 
 interface ChatMessage {
   type: 'user' | 'bot';
   content: string;
-  agentAction?: {
-    actionType: string;
-    content: string;
-  };
 }
 
 const chatMessages = ref<ChatMessage[]>([]);
@@ -224,176 +209,154 @@ const sendAiMessage = async () => {
   isAiProcessing.value = true;
   await scrollChatToBottom();
 
-  setTimeout(() => {
+  try {
     if (aiMode.value === 'ASK') {
-      const response = generateAskResponse(userMessage);
+      const resp = await submitConsultation({
+        question: userMessage,
+        facts: [
+          `合同名称：${contractForm.name}`,
+          `合同类型：${contractForm.type}`,
+          `甲方：${contractForm.partyA}`,
+          `乙方：${contractForm.partyB || '（未填写）'}`,
+          `金额：${contractForm.amount} 元`,
+          `期限：${contractForm.duration || '（未填写）'}`,
+          contractForm.content ? `当前合同正文（节选）：${contractForm.content.slice(0, 600)}` : '当前合同正文：尚未生成'
+        ]
+      });
+
+      const answerParts: string[] = [];
+      if (resp.recommendations?.length) {
+        answerParts.push(`建议：\n- ${resp.recommendations.join('\n- ')}`);
+      }
+      if (resp.riskAlerts?.length) {
+        answerParts.push(`风险提示：\n- ${resp.riskAlerts.join('\n- ')}`);
+      }
+      if (resp.legalBasis?.length) {
+        answerParts.push(`法律依据：\n- ${resp.legalBasis.join('\n- ')}`);
+      }
+
       chatMessages.value.push({
         type: 'bot',
-        content: response
+        content: answerParts.length ? answerParts.join('\n\n') : '我已收到问题，但暂时无法生成有效回复，请稍后重试。'
       });
     } else {
-      const agentResponse = generateAgentResponse(userMessage);
+      if (!contractForm.content.trim()) {
+        toast('请先生成合同正文，再使用 Agent 修改。', 'warning');
+        chatMessages.value.push({
+          type: 'bot',
+          content: '请先点击“生成合同”生成正文，然后我再根据指令修改。'
+        });
+        return;
+      }
+
+      const mergedRequirements = [
+        contractForm.requirements?.trim() || '',
+        `修改需求：${userMessage}`,
+        '当前合同全文：',
+        contractForm.content
+      ].filter(Boolean).join('\n\n');
+
+      const resp = await submitContractDraft({
+        contractName: contractForm.name,
+        contractType: contractForm.type,
+        partyA: contractForm.partyA,
+        partyB: contractForm.partyB,
+        amount: Math.round(Number(contractForm.amount) || 0),
+        duration: contractForm.duration,
+        requirements: mergedRequirements
+      });
+
+      contractForm.content = resp.generatedContent;
       chatMessages.value.push({
         type: 'bot',
-        content: agentResponse.message,
-        agentAction: {
-          actionType: 'INSERT',
-          content: agentResponse.suggestedText
-        }
+        content: '✅ 已根据你的指令完成修改，并已自动替换左侧正文。'
       });
     }
+  } finally {
     isAiProcessing.value = false;
     scrollChatToBottom();
-  }, 800);
-};
-
-const generateAskResponse = (question: string): string => {
-  // 基于关键词提供专业建议（模板回复，用于兜底）
-  const keywords = question.toLowerCase();
-  
-  if (keywords.includes('风险')) {
-    return '合同主要风险点：\n1. 付款条件不明确 → 建议明确付款期限、方式、发票要求\n2. 违约责任含糊 → 建议量化违约金比例或赔偿标准\n3. 交付/验收标准不清 → 建议附加具体收货验收规则\n4. 争议解决机制缺失 → 建议增加仲裁或诉讼条款\n5. 保密责任不对等 → 建议明确保密范围和期限\n\n您想重点讨论哪个？';
-  }
-  if (keywords.includes('条款')) {
-    return '标准合同条款结构建议（按法律规范）：\n① 合同主体与标的 - 明确双方主体、服务内容或货物\n② 权利义务条款 - 详细列举双方的权利与义务\n③ 付款与交付 - 支付节点、金额、交付方式、验收标准\n④ 违约责任 - 违约金比例、赔偿范围、解除权\n⑤ 争议解决 - 适用法律、管辖法院/仲裁机构\n⑥ 其他条款 - 保密、知识产权、不可抗力等\n\n需要我为您补充某个具体条款吗？';
-  }
-  if (keywords.includes('保密')) {
-    return '保密条款应包含以下要素：\n✓ 保密信息定义 - 明确哪些属于商业秘密\n✓ 保密范围 - 双方均受约束还是单向保密\n✓ 保密期限 - 建议5-10年（根据行业标准）\n✓ 排除情况 - 公知信息、法定披露、独立开发\n✓ 违反后果 - 违约金、赔偿责任、追究责任\n✓ 救济手段 - 可申请禁令或要求赔偿\n\n需要我为您补充保密条款吗？';
-  }
-  
-  return '我已阅读您的提问。可以帮助您：\n→ 分析合同风险点并提出防范方案\n→ 完善合同条款结构和法律描述\n→ 优化具体条款内容（付款、交付、违约等）\n→ 调整双方权利义务的平衡性\n\n请具体告诉我您想改进哪个方面！';
-};
-
-const generateAgentResponse = (instruction: string) => {
-  // 根据用户指令生成标准法律条款建议（模板回复）
-  const lowerInstruction = instruction.toLowerCase();
-  
-  if (lowerInstruction.includes('违约金') || lowerInstruction.includes('违约') || lowerInstruction.includes('责任')) {
-    return {
-      message: '✅ 已为您生成标准违约责任条款，请核对后使用。',
-      suggestedText: `第六条  违约责任
-6.1 甲方违约：如甲方未按合同规定完成履约义务或交付标准不达要求，应按逾期天数向乙方支付违约金（建议按日0.1%-0.5%计算），逾期超过30天乙方有权单方面解除合同并要求赔偿损失。
-6.2 乙方违约：如乙方未按时支付合同款项，应按逾期天数支付相应违约金；如违反保密或其他重要义务，应承担相应法律责任。
-6.3 赔偿责任：任何一方因过错或违约给对方造成的直接经济损失，应在违约金之外足额赔偿。
-6.4 解除权：一方重大违约经通知后30日内仍未改正的，对方有权发出解除通知函，合同立即解除。`
-    };
-  }
-  
-  if (lowerInstruction.includes('保密') || lowerInstruction.includes('机密') || lowerInstruction.includes('知识产权')) {
-    return {
-      message: '✅ 已为您补充保密与知识产权条款，请核对内容。',
-      suggestedText: `第五条  保密与知识产权
-5.1 保密定义：双方对履行本合同过程中获知的商业秘密、技术方案、客户信息、财务数据等信息承诺严格保密。
-5.2 保密期限：保密义务在本合同终止后继续有效，期限为5年（如法律规定更长期限则按法律规定）。
-5.3 保密例外：根据法律强制要求必须披露、公知信息、独立开发信息、第三方已知信息除外。
-5.4 知识产权权属：本合同履行过程中产生的知识产权（包括专利、著作权、商业秘密等）的归属权和使用权按双方另行商定协议确定。
-5.5 违反后果：任何一方违反保密义务给对方造成损失的，应承担赔偿责任，特别严重情形下对方有权申请禁令。`
-    };
-  }
-
-  if (lowerInstruction.includes('付款') || lowerInstruction.includes('支付') || lowerInstruction.includes('价格')) {
-    return {
-      message: '✅ 已为您生成详细的付款条款，请确认修改。',
-      suggestedText: `第三条  费用与支付
-3.1 合同总价：人民币 ${contractForm.amount} 元整（大写：${Math.round(contractForm.amount / 10000)}万元，详见发票）
-3.2 支付安排：合同总价分阶段支付
-  - 签订合同时：支付总价的30%（¥${Math.round(contractForm.amount * 0.3)}元）
-  - 服务/商品交付时：支付总价的40%（¥${Math.round(contractForm.amount * 0.4)}元）
-  - 验收通过/使用满意期后：支付剩余30%（¥${Math.round(contractForm.amount * 0.3)}元）
-3.3 支付方式：银行转账汇款至乙方指定账户，以银行凭证为支付凭证
-3.4 发票：乙方应在收款后10日内按金额开具增值税发票
-3.5 逾期利息：甲方逾期支付，按日利率 0.05‰ 计算逾期利息并计入应付款项`
-    };
-  }
-
-  if (lowerInstruction.includes('交付') || lowerInstruction.includes('验收') || lowerInstruction.includes('交货')) {
-    return {
-      message: '✅ 已为您补充交付与验收条款，请核对。',
-      suggestedText: `第四条  交付与验收
-4.1 交付时间：${contractForm.duration || '12个月'}内完成交付（具体时间表详见附件）
-4.2 交付地点：乙方指定地点（含运输、安装等）或远程交付（根据商品性质）
-4.3 交付标准：交付的商品/服务应满足
-  - 符合国家相关法律法规和行业标准
-  - 符合合同约定的规格、数量、质量要求
-  - 包装完整，标识清晰
-4.4 验收流程：乙方收到交付物后 7 天内进行验收
-  - 验收合格：乙方签收确认，视为接受
-  - 有瑕疵：乙方通知甲方，甲方在 5 天内修复或重新交付
-  - 不符合要求：乙方有权拒收并要求退款
-4.5 风险转移：交付物交付乙方、乙方签收后，风险责任转移至乙方`
-    };
-  }
-
-  return {
-    message: '📝 已收到您的修改指令，转化为标准法律条款。',
-    suggestedText: `【指令处理】"${instruction}"\n\n✓ 该修改建议已转化为符合法律标准的条款模板\n✓ 点击下方"应用修改"按钮将其添加到左侧编辑区\n✓ 您可以在编辑区进一步调整细节，或继续输入其他修改指令\n\n提示：每条指令可以反复调整，直到满足为止。`
-  };
-};
-
-const applyAgentAction = (messageIdx: number) => {
-  const msg = chatMessages.value[messageIdx];
-  if (msg.agentAction) {
-    contractForm.content += '\n\n' + msg.agentAction.content;
-    chatMessages.value.push({
-      type: 'bot',
-      content: '✅ 修改已应用！您可以在左侧编辑区查看更新。'
-    });
-    scrollChatToBottom();
   }
 };
 
-const cancelAgentAction = (messageIdx: number) => {
-  chatMessages.value.splice(messageIdx, 1);
-};
+function validateDraftInputs(): string | null {
+  if (!contractForm.name.trim()) return '请输入合同名称';
+  if (!contractForm.partyA.trim()) return '请输入甲方名称';
+  if (!contractForm.partyB.trim()) return '请输入乙方名称';
+  const amount = Number(contractForm.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return '请输入有效的合同金额';
+  return null;
+}
 
-const submitForReview = async () => {
-  if (!contractForm.name) {
-    alert('请输入合同名称');
+const generateContract = async () => {
+  const err = validateDraftInputs();
+  if (err) {
+    toast(err, 'warning');
     return;
   }
 
-  isSubmitting.value = true;
-
+  isGenerating.value = true;
   try {
-    // 调用后端生成合同
     const response = await submitContractDraft({
       contractName: contractForm.name,
       contractType: contractForm.type,
       partyA: contractForm.partyA,
       partyB: contractForm.partyB,
-      amount: contractForm.amount,
+      amount: Math.round(Number(contractForm.amount) || 0),
       duration: contractForm.duration,
       requirements: contractForm.requirements
     });
-
-    // 将生成的合同内容填入编辑区
     contractForm.content = response.generatedContent;
-
-    // 存储到sessionStorage用于审查页面
-    sessionStorage.setItem('pendingContractContent', response.generatedContent);
-    sessionStorage.setItem('pendingContractName', contractForm.name);
-
-    // 跳转到审查页面
-    router.push({
-      name: 'ContractReview',
-      query: {
-        fromDraft: 'true'
-      }
-    });
-  } catch (error) {
-    console.error('生成合同失败:', error);
-    alert('生成合同失败，请稍后重试或检查网络连接');
+    toast('合同已生成', 'success');
   } finally {
-    isSubmitting.value = false;
+    isGenerating.value = false;
   }
+};
+
+const saveDraft = async () => {
+  const err = validateDraftInputs();
+  if (err) {
+    toast(err, 'warning');
+    return;
+  }
+
+  isSavingDraft.value = true;
+  try {
+    const saved = await createContract({
+      name: contractForm.name,
+      contractType: contractForm.type,
+      partyA: contractForm.partyA,
+      partyB: contractForm.partyB,
+      amount: Number(contractForm.amount) || 0,
+      source: 'AI_DRAFT',
+      status: 'DRAFT'
+    });
+    toast(`草稿已保存：${saved.contractNo}`, 'success');
+  } finally {
+    isSavingDraft.value = false;
+  }
+};
+
+const submitForReview = async () => {
+  if (!contractForm.content.trim()) {
+    toast('请先生成或填写合同正文', 'warning');
+    return;
+  }
+
+  sessionStorage.setItem('pendingContractContent', contractForm.content);
+  sessionStorage.setItem('pendingContractName', contractForm.name);
+
+  router.push({
+    name: 'contractReview',
+    query: { fromDraft: 'true' }
+  });
 };
 
 const copyContent = async () => {
   try {
     await navigator.clipboard.writeText(contractForm.content);
-    alert('已复制到剪贴板');
+    toast('已复制到剪贴板', 'success');
   } catch (error) {
-    alert('复制失败，请重试');
+    toast('复制失败，请重试', 'error');
   }
 };
 

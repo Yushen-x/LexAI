@@ -102,9 +102,15 @@
                   📋
                 </button>
               </div>
-              <ul class="clean-list">
-                <li v-for="item in result.legalBasis" :key="item">{{ item }}</li>
-              </ul>
+              <div class="basis-list">
+                <div v-for="item in structuredLegalBasis" :key="item.raw" class="basis-item">
+                  <div class="basis-head">
+                    <span class="basis-law">{{ item.law }}</span>
+                    <span v-if="item.article" class="basis-article">{{ item.article }}</span>
+                  </div>
+                  <div class="basis-content text-muted text-sm">{{ item.content }}</div>
+                </div>
+              </div>
             </div>
 
             <div class="result-box">
@@ -144,6 +150,7 @@
 import { computed, reactive, ref } from 'vue';
 import { submitConsultation } from '@/shared/api/legal';
 import type { ConsultationResponse } from '@/shared/types/legal';
+import { toast } from '@/shared/ui/toast';
 
 const form = reactive({
   question: '',
@@ -199,6 +206,23 @@ const suggestedMaterials = computed(() => {
   return ['完整主体身份材料', '关键事实客观证明', '与争议直接相关的往来记录'];
 });
 
+function parseLegalBasis(raw: string) {
+  const normalized = raw.trim();
+  // Common patterns: 《xxx法》第N条：内容 / xxx法 第N条 内容 / 纯文本
+  const m = normalized.match(
+    /^(?<law>《[^》]+》|[^第:：]{2,30}?(?:法|条例|规定))?\s*(?<article>第[^:：\s]{1,12}条)?\s*[:：]?\s*(?<content>.*)$/
+  );
+  const law = (m?.groups?.law || '相关依据').trim();
+  const article = (m?.groups?.article || '').trim();
+  const content = (m?.groups?.content || normalized).trim();
+  return { raw: normalized, law, article, content };
+}
+
+const structuredLegalBasis = computed(() => {
+  const items = result.value?.legalBasis ?? [];
+  return items.map(parseLegalBasis);
+});
+
 function applyPreset(preset: { question: string; facts: string[] }) {
   form.question = preset.question;
   factsInput.value = preset.facts.join('，');
@@ -210,10 +234,10 @@ async function copyLegalBasis() {
   try {
     const text = result.value.legalBasis.join('\n');
     await navigator.clipboard.writeText(text);
-    alert('法律依据已复制到剪贴板');
+    toast('法律依据已复制到剪贴板', 'success');
   } catch (error) {
     console.error('复制失败:', error);
-    alert('复制失败，请重试');
+    toast('复制失败，请重试', 'error');
   }
 }
 
@@ -284,6 +308,41 @@ function resetForm() {
   background-color: var(--primary-soft);
   color: var(--primary);
   border-color: var(--primary);
+}
+
+.basis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.basis-item {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  background: var(--bg-surface);
+}
+
+.basis-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.basis-law {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.basis-article {
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--border-light);
 }
 
 .grid-layout {

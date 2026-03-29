@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { toast } from '@/shared/ui/toast';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -9,7 +10,18 @@ export const http = axios.create({
 
 // Response interceptor for error handling
 http.interceptors.response.use(
-  response => response,
+  (response) => {
+    const body: any = response?.data;
+    if (body && typeof body === 'object' && 'code' in body) {
+      const code = body.code;
+      if (code && code !== 'SUCCESS') {
+        const msg = body.message || '请求失败，请重试';
+        toast(msg, 'error');
+        return Promise.reject(new Error(msg));
+      }
+    }
+    return response;
+  },
   (error: AxiosError) => {
     let errorMessage = '请求失败，请重试';
 
@@ -51,11 +63,8 @@ http.interceptors.response.use(
       errorMessage = error.message || '请求配置出错';
     }
 
-    // Show error toast/notification
     console.error('API Error:', errorMessage);
-    
-    // You can integrate with a toast notification library here
-    // e.g., ElMessage.error(errorMessage);
+    toast(errorMessage, 'error');
     
     return Promise.reject(new Error(errorMessage));
   }
