@@ -1,4 +1,4 @@
-﻿# LexAI: Intelligent Legal Assistance System - Project Charter
+# LexAI: Intelligent Legal Assistance System - Project Charter
 
 ## 1. Project Overview
 
@@ -9,10 +9,10 @@
 | Project Title | LexAI: Intelligent Legal Assistance System |
 | Project ID | LEXAI-2026-SPRING |
 | Project Type | Course Project Prototype |
-| Project Start Date | March 9, 2026 |
-| Projected Finish Date | June 15, 2026 |
+| Project Start Date | March 30, 2026 |
+| Projected Finish Date | June 14, 2026 |
 | Project Manager | Xiangyu Xiao |
-| Charter Date | March 25, 2026 |
+| Charter Date | March 29, 2026 |
 | Faculty Advisor | Bowen Du |
 
 ## 2. Stakeholder Analysis
@@ -89,34 +89,298 @@ This prototype is designed for Chinese civil law scenarios; all legal references
 | Full legal coverage | No attempt to cover all legal domains or international legal systems |
 | Full enterprise governance | No enterprise-grade compliance program beyond course-project controls |
 
+### 5.3 Requirement Breakdown Structure (RBS)
+
+The RBS decomposes the stakeholder requirements into progressively detailed levels.
+
+```
+RBS: LexAI Intelligent Legal Assistance System
+├── R1  Functional Requirements
+│   ├── R1.1  Legal Consultation Module
+│   │   ├── R1.1.1  Natural-language question input
+│   │   ├── R1.1.2  Structured answer generation with legal citations
+│   │   └── R1.1.3  Boundary and disclaimer reminders
+│   ├── R1.2  Case Analysis Module
+│   │   ├── R1.2.1  Case-fact extraction and summarization
+│   │   ├── R1.2.2  Legal-issue identification
+│   │   └── R1.2.3  Applicable-law matching and suggestion
+│   ├── R1.3  Contract Review Module
+│   │   ├── R1.3.1  Clause-level risk identification
+│   │   ├── R1.3.2  Revision suggestion generation
+│   │   └── R1.3.3  Risk-level scoring and report output
+│   ├── R1.4  Document Generation Module
+│   │   ├── R1.4.1  Template selection and parameter input
+│   │   ├── R1.4.2  Draft generation based on user inputs
+│   │   └── R1.4.3  Format validation and export
+│   └── R1.5  Knowledge Support Module
+│       ├── R1.5.1  Legal knowledge base construction
+│       ├── R1.5.2  RAG-based retrieval and grounding
+│       └── R1.5.3  Knowledge update and maintenance
+├── R2  Non-Functional Requirements
+│   ├── R2.1  Performance
+│   │   ├── R2.1.1  P95 response time ≤ 5 seconds
+│   │   └── R2.1.2  System availability ≥ 95% during demo
+│   ├── R2.2  Security and Privacy
+│   │   ├── R2.2.1  No real personal data in testing
+│   │   ├── R2.2.2  Access control for all endpoints
+│   │   └── R2.2.3  Compliance with PRC Cybersecurity Law basics
+│   ├── R2.3  Usability
+│   │   ├── R2.3.1  Intuitive web-based user interface
+│   │   ├── R2.3.2  Clear error messages and guidance
+│   │   └── R2.3.3  Mobile-responsive layout
+│   └── R2.4  Quality and Accuracy
+│       ├── R2.4.1  ≥ 85% checklist pass rate for legal accuracy
+│       ├── R2.4.2  ≤ 8% hallucination rate in audited samples
+│       └── R2.4.3  ≥ 80% recall on contract-review benchmark
+└── R3  Delivery Requirements
+    ├── R3.1  Deployable prototype for campus-scale demo
+    ├── R3.2  Complete project documentation set (charter, design docs, test reports)
+    ├── R3.3  Pilot testing with ≥ 20 users
+    ├── R3.4  Final presentation and defense materials
+    └── R3.5  Project closeout and archival materials
+```
+
+### 5.4 Work Breakdown Structure (WBS)
+
+The WBS decomposes the project into three levels of manageable work packages, totaling approximately 65 leaf-level packages.
+
+```
+WBS: LexAI Intelligent Legal Assistance System
+├── 1.0  Project Management                                    (60 hrs)
+│   ├── 1.1  Project planning and charter preparation             (20 hrs)
+│   │   ├── 1.1.1  Requirement research and scope definition
+│   │   ├── 1.1.2  Charter writing (including RBS / WBS)
+│   │   └── 1.1.3  Schedule and resource planning
+│   ├── 1.2  Weekly progress tracking and coordination             (22 hrs)
+│   │   ├── 1.2.1  Weekly meeting organization and minutes
+│   │   └── 1.2.2  Task assignment and progress updates
+│   ├── 1.3  Risk monitoring and mitigation                        (10 hrs)
+│   │   ├── 1.3.1  Risk register maintenance
+│   │   └── 1.3.2  Mitigation action execution and tracking
+│   └── 1.4  Stakeholder communication and reporting               ( 8 hrs)
+│       ├── 1.4.1  Faculty advisor communication and feedback
+│       └── 1.4.2  Phase-end progress reporting
+├── 2.0  Requirement Analysis                                    (36 hrs)
+│   ├── 2.1  Stakeholder requirement gathering                     (12 hrs)
+│   │   ├── 2.1.1  Target user requirement research
+│   │   ├── 2.1.2  Legal scenario mapping and classification
+│   │   └── 2.1.3  Competitive analysis and reference study
+│   ├── 2.2  Scenario definition and prioritization                (10 hrs)
+│   │   ├── 2.2.1  Core use-scenario definition
+│   │   └── 2.2.2  Scenario priority matrix development
+│   ├── 2.3  Evaluation criteria and benchmark design              ( 8 hrs)
+│   │   ├── 2.3.1  Functional test case design
+│   │   └── 2.3.2  Quality benchmark set construction
+│   └── 2.4  Requirement documentation and review                  ( 6 hrs)
+│       ├── 2.4.1  Requirement specification writing
+│       └── 2.4.2  Requirement review and baseline freeze
+├── 3.0  System Design                                            (58 hrs)
+│   ├── 3.1  System architecture design                            (16 hrs)
+│   │   ├── 3.1.1  Overall technology selection
+│   │   ├── 3.1.2  Module partitioning and interface definition
+│   │   └── 3.1.3  Data model design
+│   ├── 3.2  RAG and retrieval strategy design                     (12 hrs)
+│   │   ├── 3.2.1  Knowledge base structure design
+│   │   └── 3.2.2  Retrieval and ranking strategy development
+│   ├── 3.3  Prompt engineering and output structure design         (10 hrs)
+│   │   ├── 3.3.1  Prompt template design
+│   │   └── 3.3.2  Output format and constraint rule definition
+│   ├── 3.4  UI/UX design and prototyping                          (12 hrs)
+│   │   ├── 3.4.1  User interaction flow design
+│   │   ├── 3.4.2  Page prototype and visual mockup
+│   │   └── 3.4.3  Responsive design plan
+│   └── 3.5  Test plan and environment setup                       ( 8 hrs)
+│       ├── 3.5.1  Test strategy and case planning
+│       └── 3.5.2  Development and test environment configuration
+├── 4.0  Development                                              (238 hrs)
+│   ├── 4.1  Backend API and service framework                     (40 hrs)
+│   │   ├── 4.1.1  Project scaffolding and base configuration
+│   │   ├── 4.1.2  Authentication and authorization middleware
+│   │   ├── 4.1.3  Core API route implementation
+│   │   └── 4.1.4  Logging, monitoring, and error handling
+│   ├── 4.2  Legal consultation module                             (30 hrs)
+│   │   ├── 4.2.1  Question classification and intent recognition
+│   │   ├── 4.2.2  Answer generation pipeline development
+│   │   └── 4.2.3  Legal citation and disclaimer integration
+│   ├── 4.3  Case analysis module                                  (28 hrs)
+│   │   ├── 4.3.1  Case fact structured extraction
+│   │   ├── 4.3.2  Issue identification and legal applicability analysis
+│   │   └── 4.3.3  Analysis report formatted output
+│   ├── 4.4  Contract review module                                (32 hrs)
+│   │   ├── 4.4.1  Contract clause parsing and segmentation
+│   │   ├── 4.4.2  Risk clause identification engine
+│   │   └── 4.4.3  Revision suggestion generation and risk scoring
+│   ├── 4.5  Document generation module                            (28 hrs)
+│   │   ├── 4.5.1  Template management and parameterized filling
+│   │   ├── 4.5.2  Intelligent draft generation
+│   │   └── 4.5.3  Format validation and multi-format export
+│   ├── 4.6  Knowledge base and RAG integration                    (24 hrs)
+│   │   ├── 4.6.1  Legal knowledge data preprocessing and ingestion
+│   │   ├── 4.6.2  Vector retrieval service setup
+│   │   └── 4.6.3  RAG pipeline end-to-end integration
+│   ├── 4.7  Frontend web application                              (36 hrs)
+│   │   ├── 4.7.1  Page framework and routing setup
+│   │   ├── 4.7.2  Core feature page development
+│   │   ├── 4.7.3  Interaction effects and responsive adaptation
+│   │   └── 4.7.4  User feedback and error notification components
+│   └── 4.8  System integration and API wiring                     (20 hrs)
+│       ├── 4.8.1  Frontend-backend integration
+│       ├── 4.8.2  Inter-module interface integration
+│       └── 4.8.3  End-to-end workflow verification
+├── 5.0  Testing and Optimization                                 (60 hrs)
+│   ├── 5.1  Unit and integration testing                          (16 hrs)
+│   │   ├── 5.1.1  Backend API unit testing
+│   │   └── 5.1.2  Inter-module integration testing
+│   ├── 5.2  Benchmark evaluation and quality audit                (14 hrs)
+│   │   ├── 5.2.1  Legal accuracy benchmark testing
+│   │   └── 5.2.2  Hallucination rate audit and output quality evaluation
+│   ├── 5.3  Performance testing and optimization                  (10 hrs)
+│   │   ├── 5.3.1  Response time and throughput testing
+│   │   └── 5.3.2  Performance bottleneck analysis and optimization
+│   ├── 5.4  Security and data-handling verification               ( 8 hrs)
+│   │   ├── 5.4.1  Data privacy compliance check
+│   │   └── 5.4.2  API security testing
+│   └── 5.5  Defect fixing and regression testing                  (12 hrs)
+│       ├── 5.5.1  Defect classification and priority fixing
+│       └── 5.5.2  Regression testing and verification
+├── 6.0  Pilot Deployment and Demo                                (40 hrs)
+│   ├── 6.1  Demo environment deployment                           (10 hrs)
+│   │   ├── 6.1.1  Production environment configuration and deployment
+│   │   └── 6.1.2  Data migration and environment verification
+│   ├── 6.2  Pilot user testing (≥ 20 users)                       (12 hrs)
+│   │   ├── 6.2.1  Pilot user recruitment and training
+│   │   └── 6.2.2  Pilot test execution and recording
+│   ├── 6.3  Feedback collection and final tuning                  ( 8 hrs)
+│   │   ├── 6.3.1  User feedback compilation and analysis
+│   │   └── 6.3.2  Critical issue fixes and optimization
+│   └── 6.4  Final presentation preparation                        (10 hrs)
+│       ├── 6.4.1  Demo script and material creation
+│       └── 6.4.2  Rehearsal and final presentation
+└── 7.0  Project Closeout                                          (16 hrs)
+    ├── 7.1  Final documentation and archiving                      ( 8 hrs)
+    │   ├── 7.1.1  Project documentation consolidation
+    │   └── 7.1.2  Code and asset archiving
+    ├── 7.2  Lessons learned summary                               ( 4 hrs)
+    └── 7.3  Project handover and closure                           ( 4 hrs)
+```
+
+### 5.5 Total Work Hours Estimation
+
+#### By WBS Category
+
+| WBS Category | Estimated Hours | Percentage |
+|--------------|----------------:|-----------:|
+| 1.0 Project Management | 60 | 11.8% |
+| 2.0 Requirement Analysis | 36 | 7.1% |
+| 3.0 System Design | 58 | 11.4% |
+| 4.0 Development | 238 | 46.9% |
+| 5.0 Testing and Optimization | 60 | 11.8% |
+| 6.0 Pilot Deployment and Demo | 40 | 7.9% |
+| 7.0 Project Closeout | 16 | 3.1% |
+| **Total** | **508** | **100%** |
+
+#### Member × Phase Allocation Matrix (hours)
+
+| Member \ Phase | 1.0 Mgmt | 2.0 Req | 3.0 Design | 4.0 Dev | 5.0 Test | 6.0 Deploy | 7.0 Close | **Total** |
+|----------------|--------:|-------:|---------:|-------:|--------:|----------:|---------:|--------:|
+| Xiangyu Xiao | 30 | 8 | 16 | 50 | 16 | 12 | 8 | **140** |
+| Baoyi Hu | 10 | 10 | 22 | 64 | 14 | 6 | 4 | **130** |
+| Sirui Da | 10 | 10 | 12 | 64 | 14 | 10 | 0 | **120** |
+| Qi Lin | 10 | 8 | 8 | 60 | 16 | 12 | 4 | **118** |
+| **Total** | **60** | **36** | **58** | **238** | **60** | **40** | **16** | **508** |
+
+**Per-member average:** ~127 hours over 11 weeks ≈ ~11.5 hours per person per week.
+
 ## 6. Project Schedule Summary
 
 ### 6.1 Timeline Overview
 
 | Item | Date |
 |------|------|
-| Project Start Date | March 9, 2026 |
-| Project End Date | June 15, 2026 |
+| Project Start Date | March 30, 2026 |
+| Project End Date | June 14, 2026 |
+| Total Duration | 11 weeks (77 calendar days) |
 
 ### 6.2 Key Milestones
 
 | Phase | Timeline | Deliverables |
 |-------|----------|--------------|
-| Requirement Analysis | March 9, 2026 - March 29, 2026 | Functional specifications, scenario list, and evaluation criteria |
-| System Design | March 30, 2026 - April 5, 2026 | Architecture design, retrieval strategy, output structure, and test approach |
-| Development | April 6, 2026 - May 31, 2026 | Core prototype modules completed and integrated |
-| Testing and Optimization | June 1, 2026 - June 7, 2026 | Test report, issue fixes, and quality optimization |
-| Pilot Deployment and Final Demo | June 8, 2026 - June 14, 2026 | Pilot-ready prototype, demo materials, and feedback summary |
-| Project Closeout | June 15, 2026 | Final documentation, archived materials, and closure summary |
+| Requirement Analysis & Planning | March 30, 2026 – April 12, 2026 (W1–W2) | Functional specifications, scenario list, evaluation criteria, and project charter |
+| System Design | April 13, 2026 – April 26, 2026 (W3–W4) | Architecture design, retrieval strategy, prompt design, UI prototype, and test plan |
+| Core Development – Sprint 1 | April 27, 2026 – May 10, 2026 (W5–W6) | Backend framework, knowledge base, legal consultation module |
+| Core Development – Sprint 2 | May 11, 2026 – May 24, 2026 (W7–W8) | Case analysis, contract review, document generation, frontend application |
+| Integration and Testing | May 25, 2026 – June 7, 2026 (W9–W10) | System integration, benchmark evaluation, performance testing, defect fixes |
+| Pilot Deployment and Final Demo | June 8, 2026 – June 14, 2026 (W11) | Pilot testing, feedback collection, final presentation, and project closeout |
 
 ### 6.3 Review Plan
 
 | Review Item | Date or Frequency | Purpose |
 |-------------|-------------------|---------|
 | Weekly Progress Review | Every Monday | Internal progress tracking and issue follow-up |
-| Mid-Project Review | April 27, 2026 | Review progress against scope and schedule |
+| Mid-Project Review | May 4, 2026 | Review progress against scope and schedule at the midpoint |
 | Pre-Demo Quality Review | June 7, 2026 | Confirm readiness for pilot and final demonstration |
 | Final Review | June 14, 2026 | Final presentation and acceptance review |
+
+### 6.4 Gantt Chart
+
+The following Gantt chart shows the planned schedule from March 30 to June 14, 2026 (11 weeks).
+
+```
+                           Mar       April                  May                     June
+Phase / Work Package       W1   W2   W3   W4   W5   W6   W7   W8   W9   W10  W11
+                          3/30 4/06 4/13 4/20 4/27 5/04 5/11 5/18 5/25 6/01 6/08
+─────────────────────────────────────────────────────────────────────────────────────
+1.0 Project Management    ████ ████ ████ ████ ████ ████ ████ ████ ████ ████ ████
+─────────────────────────────────────────────────────────────────────────────────────
+2.0 Requirement Analysis   ████ ████
+  2.1 Requirement gather   ████ ░░░░
+  2.2 Scenario definition  ░░░░ ████
+  2.3 Evaluation criteria  ░░░░ ████
+  2.4 Req documentation    ░░░░ ████
+─────────────────────────────────────────────────────────────────────────────────────
+3.0 System Design                    ████ ████
+  3.1 Architecture design            ████ ░░░░
+  3.2 RAG/retrieval design           ████ ████
+  3.3 Prompt/output design           ░░░░ ████
+  3.4 UI/UX prototyping              ████ ████
+  3.5 Test plan & env setup          ░░░░ ████
+─────────────────────────────────────────────────────────────────────────────────────
+4.0 Development                                ████ ████ ████ ████
+  4.1 Backend API/service                      ████ ████ ░░░░ ░░░░
+  4.2 Legal consultation                       ████ ████
+  4.3 Case analysis                                  ░░░░ ████ ████
+  4.4 Contract review                                ░░░░ ████ ████
+  4.5 Document generation                                  ████ ████
+  4.6 Knowledge base/RAG                       ████ ████ ░░░░
+  4.7 Frontend web app                         ░░░░ ████ ████ ████
+  4.8 Integration & wiring                                  ░░░░ ████
+─────────────────────────────────────────────────────────────────────────────────────
+5.0 Testing & Optimization                                        ████ ████
+  5.1 Unit/integration test                                        ████ ░░░░
+  5.2 Benchmark & audit                                            ████ ████
+  5.3 Performance testing                                          ░░░░ ████
+  5.4 Security verification                                        ░░░░ ████
+  5.5 Defect fix & retest                                          ████ ████
+─────────────────────────────────────────────────────────────────────────────────────
+6.0 Pilot & Demo                                                              ████
+  6.1 Demo deployment                                                          ████
+  6.2 Pilot user testing                                                       ████
+  6.3 Feedback & tuning                                                        ████
+  6.4 Final presentation                                                       ████
+─────────────────────────────────────────────────────────────────────────────────────
+7.0 Project Closeout                                                           ████
+─────────────────────────────────────────────────────────────────────────────────────
+
+Legend: ████ = primary work period   ░░░░ = supporting/overlapping work
+
+▼ Key Milestones:
+  M1  Apr 12 — Requirement baseline frozen
+  M2  Apr 26 — System design approved
+  M3  May 10 — Sprint 1 complete (core modules v1)
+  M4  May 24 — Sprint 2 complete (all modules integrated)
+  M5  Jun 07 — Testing complete, demo-ready
+  M6  Jun 14 — Final presentation and project closeout
+```
 
 ## 7. Project Budget Summary
 
@@ -201,16 +465,24 @@ This prototype is designed for Chinese civil law scenarios; all legal references
 
 ## 10. Assumptions and Risks
 
-### 10.1 Assumptions
+### 10.1 Assumptions, Constraints, and Dependencies
 
-| Assumption | Planning Implication |
-|------------|---------------------|
-| All four student members remain available during the semester window | The schedule assumes stable team participation across major phases |
-| Approved model-platform access is available by the end of the design phase | Development estimates depend on having usable model access in time |
-| Sample legal templates and evaluation scenarios can be prepared without sensitive real-user data | Testing and demo plans avoid personal or confidential legal data |
-| Pilot users are available in late May or early June | Pilot validation and feedback collection depend on this participation |
+| Type | Item | Impact on the Project |
+|------|------|-----------------------|
+| Assumption | All four student members remain available during the semester window | The schedule assumes stable team participation across major phases |
+| Assumption | Approved model-platform access is available by the end of the design phase | Development estimates depend on having usable model access in time |
+| Assumption | Sample legal templates and evaluation scenarios can be prepared without sensitive real-user data | Testing and demo plans avoid personal or confidential legal data |
+| Assumption | Pilot users are available in late May or early June | Pilot validation and feedback collection depend on this participation |
+| Constraint | Four-student team size | Limits parallel workload and requires scope discipline |
+| Constraint | Fixed project window: March 30 – June 14, 2026 | 11-week window requires a prototype-first delivery strategy |
+| Constraint | Course-project positioning | Emphasizes demonstration value over production completeness |
+| Constraint | Approved or anonymized data only | Restricts testing materials and demo data sources |
+| Dependency | Model-service access and quota | Needed for prototype functions and evaluation runs |
+| Dependency | Sample templates and reviewer feedback | Needed for contract review, document generation, and validation |
+| Dependency | Test and demo infrastructure | Needed for stable rehearsal and final presentation |
+| Dependency | Pilot-user participation | Needed for usability feedback and final verification |
 
-### 10.2 Risk Analysis
+### 10.2 Key Risks and Mitigation
 
 | Risk | Probability | Impact | Mitigation Plan | Owner |
 |------|-------------|--------|-----------------|-------|
@@ -220,34 +492,7 @@ This prototype is designed for Chinese civil law scenarios; all legal references
 | Legal interpretation gaps in outputs | Medium | Medium | Limit scenarios and request legal review for templates and wording | Legal Reviewer (TBD) |
 | API quota shortages or platform instability | Medium | Medium | Monitor usage, cache results where possible, and prepare fallback demo cases | Qi Lin |
 
-### 10.3 Constraints
-
-| Constraint | Impact on the Project |
-|------------|----------------------|
-| Four-student team size | Limits parallel workload and requires scope discipline |
-| Fixed semester deadline of June 15, 2026 | Requires a prototype-first delivery strategy |
-| Course-project positioning | Emphasizes demonstration value over production completeness |
-| Approved or anonymized data only | Restricts testing materials and demo data sources |
-
-### 10.4 Dependencies
-
-| Dependency | Why It Matters |
-|------------|----------------|
-| Model-service access and quota | Needed for prototype functions and evaluation runs |
-| Sample templates and reviewer feedback | Needed for contract review, document generation, and validation |
-| Test and demo infrastructure | Needed for stable rehearsal and final presentation |
-| Pilot-user participation | Needed for usability feedback and final verification |
-
-### 10.5 Organizational Impact
-
-| Impact Area | Expected Effect |
-|-------------|-----------------|
-| Course outcome | Demonstrates a complete AI-assisted legal-workflow prototype in a student-project setting |
-| Team capability | Builds experience in LegalTech, AI evaluation, and compliance-aware system design |
-| Reusability | Provides reusable architecture ideas, evaluation methods, and demo assets for future work |
-| Efficiency | Reduces repetitive drafting and review effort in selected pilot scenarios |
-
-### 10.6 Open Issues
+### 10.3 Open Issues
 
 | Open Issues | Current Status |
 |-------------|----------------|
@@ -266,50 +511,21 @@ This prototype is designed for Chinese civil law scenarios; all legal references
 | Legal reviewer | At template and evaluation checkpoints | Review session and issue list | Project team |
 | Pilot users | During pilot testing | Demo, observation, and feedback form | Project team |
 
-### 11.2 Scope Management
+### 11.2 Scope, Quality, and Change Management
 
-| Control Item | Plan |
-|--------------|------|
-| Scope baseline | Freeze MVP scope at the end of requirement analysis |
-| New request review | Evaluate impact on schedule, quality, and demo readiness |
-| Scope addition rule | Accept only if the new item does not threaten core deliverables |
-| Scope reduction rule | Reduce noncritical items when necessary to protect schedule and quality |
+| Control Area | Mechanism |
+|--------------|-----------|
+| Scope baseline | Freeze MVP scope at the end of requirement analysis; new requests must be evaluated for impact on schedule and quality; accept only if core deliverables are not threatened |
+| Quality control | Define benchmark scenarios and checklists before development; conduct weekly integration checks during development; close all blocker defects before final demo |
+| Change process | Record change request → Assess impact → Review in weekly meeting → Approve/defer/reject → Update tasks and documentation |
 
-### 11.3 Quality Management
-
-| Activity | Timing | Expected Output |
-|----------|--------|-----------------|
-| Define benchmark scenarios and checklists | Before development is complete | Stable evaluation baseline |
-| Conduct weekly integration checks | During development and testing | Recorded issues and quality follow-up |
-| Track and close blocker defects | Before the final demo | Demo-ready prototype |
-| Use pilot feedback for final tuning | During the pilot stage | Final optimization summary |
-
-### 11.4 Change Management
-
-| Step | Description |
-|------|-------------|
-| 1 | Record the requested change and the reason for it |
-| 2 | Assess the impact on scope, schedule, quality, and demo readiness |
-| 3 | Review the change during the weekly team meeting |
-| 4 | Approve, defer, or reject the change |
-| 5 | Update tasks and documentation after the decision |
-
-### 11.5 Human Resources
-
-| Member | Shared Participation | Relative Emphasis |
-|--------|---------------------|-------------------|
-| Xiangyu Xiao | Participates in platform planning, design, implementation, testing, documentation, and presentation | Stronger emphasis on architecture design, AI capability integration, frontend/backend technical implementation, and cross-module integration |
-| Baoyi Hu | Participates in platform planning, design, implementation, testing, documentation, and presentation | Stronger emphasis on model-service refinement, logic tuning, and capability polishing |
-| Sirui Da | Participates in platform planning, design, implementation, testing, documentation, and presentation | Stronger emphasis on workflow organization, interaction expression, and presentation-layer consistency |
-| Qi Lin | Participates in platform planning, design, implementation, testing, documentation, and presentation | Stronger emphasis on interface integration, testing organization, and delivery preparation |
-
-### 11.6 Implementation and Closure
+### 11.3 Implementation and Closure
 
 | Stage | Timeline | Expected Output |
 |-------|----------|-----------------|
 | Internal integration and testing | By June 7, 2026 | Stable prototype and test results |
-| Pilot deployment and demo preparation | June 8-14, 2026 | Pilot-ready environment and final presentation materials |
-| Final closeout | By June 15, 2026 | Final documentation, archived materials, and lessons learned |
+| Pilot deployment and demo preparation | June 8–14, 2026 | Pilot-ready environment and final presentation materials |
+| Final closeout | June 14, 2026 | Final documentation, archived materials, and lessons learned |
 
 ## 12. Acceptance and Approval
 
@@ -327,23 +543,4 @@ This prototype is designed for Chinese civil law scenarios; all legal references
 - PRC Cybersecurity Law and related data-protection requirements
 - Course requirement materials and team planning notes
 - Approved legal templates and internal review checklist
-- Project README and architecture documentation
-
-## 14. Terminology or Glossary
-
-| Term | Definition |
-|------|------------|
-| Legal Q&A | AI-assisted workflow for answering selected legal questions |
-| Case Analysis | Structured analysis of case facts, issues, and possible legal points |
-| RAG | Retrieval-Augmented Generation used to ground model outputs with retrieved knowledge |
-| Hallucination | Output that is unsupported, misleading, or factually incorrect |
-| MOV | Measurable Organizational Value used to evaluate project success |
-| Pilot User | User participating in limited testing of the prototype |
-
-## 15. Appendices (as required)
-
-- System architecture diagrams
-- Prompt and retrieval design notes
-- Sample legal documents and templates
-- Test report and defect summary
-- Security and data-handling checklist
+- Project README and architecture documentation
