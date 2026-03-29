@@ -1,4 +1,4 @@
-﻿# LexAI
+# LexAI
 
 LexAI 是一个面向法律咨询、案件分析与合同审查场景的智能法律工作台原型。当前仓库已经完成前后端基础工程、核心页面骨架和部分接口联调，后端推理能力目前由 Mock 引擎提供，便于后续继续接入真实 AI 能力。
 
@@ -26,6 +26,8 @@ mvn spring-boot:run
 ```
 
 启动后默认地址：`http://localhost:8080/api`
+
+**要调用得理 / 腾讯真实接口（避免只走兜底）**：请按 **[docs/后端本地启动与API环境配置.md](docs/后端本地启动与API环境配置.md)** 从零步到九步操作；密钥只在本地 `backend/.env` 填写，由你自己或负责人提供，勿提交仓库。
 
 ### 2. 启动前端
 
@@ -63,6 +65,7 @@ npm run dev
 
 ## 相关文档
 
+- `docs/后端本地启动与API环境配置.md`：后端环境变量与分步启动（傻瓜模式）
 - `docs/ARCHITECTURE.md`：工程架构说明
 - `docs/ProjectCharter.md`：英文项目章程
 - `docs/ProjectCharter.zh.md`：中文项目章程
