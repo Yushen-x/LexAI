@@ -54,3 +54,19 @@ export interface ContractReviewResponse {
   summary: string;
 }
 
+export interface ContractDraftRequest {
+  contractName: string;
+  contractType: string;
+  partyA: string;
+  partyB: string;
+  amount: number;
+  duration?: string;
+  requirements?: string;
+}
+
+export interface ContractDraftResponse {
+  generatedContent: string;
+  summary: string;
+  generatedAt: string;
+}
+

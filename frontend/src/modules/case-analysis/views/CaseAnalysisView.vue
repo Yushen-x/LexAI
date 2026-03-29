@@ -112,7 +112,17 @@
             </div>
 
             <div class="result-box box-success">
-              <h4 class="result-box-title text-success">后续建议动作</h4>
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="result-box-title text-success">后续建议动作</h4>
+                <button 
+                  type="button"
+                  class="btn-copy-small text-xs"
+                  @click="copySuggestedActions"
+                  title="复制全部建议"
+                >
+                  📋
+                </button>
+              </div>
               <ul class="clean-list">
                 <li v-for="item in result.suggestedActions" :key="item">{{ item }}</li>
               </ul>
@@ -136,6 +146,7 @@
 import { computed, reactive, ref } from 'vue';
 import { submitCaseAnalysis } from '@/shared/api/legal';
 import type { CaseAnalysisResponse } from '@/shared/types/legal';
+import { toast } from '@/shared/ui/toast';
 
 const form = reactive({
   caseSummary: '',
@@ -171,15 +182,36 @@ function normalizeEvidence(raw: string) {
 const normalizedEvidence = computed(() => normalizeEvidence(evidenceInput.value));
 
 const evidenceCoverage = computed(() => {
-  const base = 38;
-  const increment = normalizedEvidence.value.length * 14;
-  return Math.min(96, base + increment);
+  if (!result.value) {
+    // 结果未返回时，仅按用户已填证据做一个保守估算
+    const present = normalizedEvidence.value.length;
+    return Math.min(95, Math.round(30 + present * 15));
+  }
+
+  // 覆盖率 = 已掌握证据 /（已掌握证据 + AI识别缺口）
+  const present = normalizedEvidence.value.length;
+  const gaps = result.value.evidenceGaps?.length ?? 0;
+  const denom = present + gaps;
+  if (denom <= 0) return 0;
+  return Math.min(100, Math.round((present / denom) * 100));
 });
 
 function applyPreset(preset: { summary: string; evidence: string[] }) {
   form.caseSummary = preset.summary;
   evidenceInput.value = preset.evidence.join('，');
   result.value = null;
+}
+
+async function copySuggestedActions() {
+  if (!result.value?.suggestedActions) return;
+  try {
+    const text = result.value.suggestedActions.join('\n');
+    await navigator.clipboard.writeText(text);
+    toast('建议动作已复制到剪贴板', 'success');
+  } catch (error) {
+    console.error('复制失败:', error);
+    toast('复制失败，请重试', 'error');
+  }
 }
 
 async function handleSubmit() {
@@ -342,10 +374,35 @@ function resetForm() {
 
 .result-box-title {
   font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.btn-copy-small {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-copy-small:hover {
+  opacity: 1;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 
 .clean-list {

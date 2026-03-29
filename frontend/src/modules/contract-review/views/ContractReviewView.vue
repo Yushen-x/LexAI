@@ -116,7 +116,7 @@
                   :class="`risk-item-${item.level.toLowerCase()}`"
                 >
                   <div class="risk-item-header">
-                    <span class="risk-badge" :class="`badge-${item.level.toLowerCase()}`">{{ getRiskLevelLabel(item.level) }}</span>
+                    <span class="badge risk-badge" :class="getRiskBadgeClass(item.level)">{{ getRiskLevelLabel(item.level) }}</span>
                     <h5 class="risk-clause">原条款：{{ item.clause }}</h5>
                   </div>
                   <div class="risk-content mt-3">
@@ -124,10 +124,20 @@
                       <strong class="text-muted text-xs uppercase tracking-wider block mb-1">风险释明</strong>
                       <p class="text-sm">{{ item.issue }}</p>
                     </div>
-                    <div class="risk-block mt-3">
-                      <strong class="text-success text-xs uppercase tracking-wider block mb-1">修改建议</strong>
-                      <p class="text-sm">{{ item.suggestion }}</p>
+                  <div class="risk-block mt-3">
+                    <strong class="text-success text-xs uppercase tracking-wider block mb-1">修改建议</strong>
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm flex-1">{{ item.suggestion }}</p>
+                      <button 
+                        type="button"
+                        class="btn-copy text-xs whitespace-nowrap ml-2"
+                        @click="copyRiskSuggestion(item.suggestion)"
+                        title="复制建议"
+                      >
+                        📋 复制
+                      </button>
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -148,9 +158,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { submitContractReview } from '@/shared/api/legal';
 import type { ContractReviewResponse } from '@/shared/types/legal';
+import { toast } from '@/shared/ui/toast';
 
 const form = reactive({
   contractTitle: '',
@@ -203,6 +214,33 @@ function getRiskLevelLabel(level: string) {
   if (level === 'MEDIUM') return '中风险';
   return '低风险';
 }
+
+function getRiskBadgeClass(level: string) {
+  if (level === 'HIGH') return 'badge-danger';
+  if (level === 'MEDIUM') return 'badge-warning';
+  return 'badge-warning';
+}
+
+async function copyRiskSuggestion(suggestion: string) {
+  try {
+    await navigator.clipboard.writeText(suggestion);
+    toast('修改建议已复制到剪贴板', 'success');
+  } catch (error) {
+    console.error('复制失败:', error);
+    toast('复制失败，请重试', 'error');
+  }
+}
+
+onMounted(() => {
+  const pendingContent = sessionStorage.getItem('pendingContractContent');
+  const pendingName = sessionStorage.getItem('pendingContractName');
+  if (pendingContent && !form.contractContent.trim()) {
+    form.contractContent = pendingContent;
+  }
+  if (pendingName && !form.contractTitle.trim()) {
+    form.contractTitle = pendingName;
+  }
+});
 
 function applyPreset(preset: { contractTitle: string; contractContent: string }) {
   form.contractTitle = preset.contractTitle;
@@ -420,6 +458,39 @@ function resetForm() {
   margin: 0;
   color: var(--text-main);
   line-height: 1.5;
+}
+
+.btn-copy {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.btn-copy:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-copy:active {
+  transform: scale(0.95);
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.ml-2 {
+  margin-left: 0.5rem;
 }
 
 .empty-state {

@@ -91,10 +91,26 @@
           <!-- Detailed Columns -->
           <div class="result-grid">
             <div class="result-box">
-              <h4 class="result-box-title text-primary">法律依据</h4>
-              <ul class="clean-list">
-                <li v-for="item in result.legalBasis" :key="item">{{ item }}</li>
-              </ul>
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="result-box-title text-primary">法律依据</h4>
+                <button 
+                  type="button"
+                  class="btn-copy-small text-xs"
+                  @click="copyLegalBasis"
+                  title="复制全部依据"
+                >
+                  📋
+                </button>
+              </div>
+              <div class="basis-list">
+                <div v-for="item in structuredLegalBasis" :key="item.raw" class="basis-item">
+                  <div class="basis-head">
+                    <span class="basis-law">{{ item.law }}</span>
+                    <span v-if="item.article" class="basis-article">{{ item.article }}</span>
+                  </div>
+                  <div class="basis-content text-muted text-sm">{{ item.content }}</div>
+                </div>
+              </div>
             </div>
 
             <div class="result-box">
@@ -134,6 +150,7 @@
 import { computed, reactive, ref } from 'vue';
 import { submitConsultation } from '@/shared/api/legal';
 import type { ConsultationResponse } from '@/shared/types/legal';
+import { toast } from '@/shared/ui/toast';
 
 const form = reactive({
   question: '',
@@ -189,10 +206,39 @@ const suggestedMaterials = computed(() => {
   return ['完整主体身份材料', '关键事实客观证明', '与争议直接相关的往来记录'];
 });
 
+function parseLegalBasis(raw: string) {
+  const normalized = raw.trim();
+  // Common patterns: 《xxx法》第N条：内容 / xxx法 第N条 内容 / 纯文本
+  const m = normalized.match(
+    /^(?<law>《[^》]+》|[^第:：]{2,30}?(?:法|条例|规定))?\s*(?<article>第[^:：\s]{1,12}条)?\s*[:：]?\s*(?<content>.*)$/
+  );
+  const law = (m?.groups?.law || '相关依据').trim();
+  const article = (m?.groups?.article || '').trim();
+  const content = (m?.groups?.content || normalized).trim();
+  return { raw: normalized, law, article, content };
+}
+
+const structuredLegalBasis = computed(() => {
+  const items = result.value?.legalBasis ?? [];
+  return items.map(parseLegalBasis);
+});
+
 function applyPreset(preset: { question: string; facts: string[] }) {
   form.question = preset.question;
   factsInput.value = preset.facts.join('，');
   result.value = null;
+}
+
+async function copyLegalBasis() {
+  if (!result.value?.legalBasis) return;
+  try {
+    const text = result.value.legalBasis.join('\n');
+    await navigator.clipboard.writeText(text);
+    toast('法律依据已复制到剪贴板', 'success');
+  } catch (error) {
+    console.error('复制失败:', error);
+    toast('复制失败，请重试', 'error');
+  }
 }
 
 async function handleSubmit() {
@@ -262,6 +308,41 @@ function resetForm() {
   background-color: var(--primary-soft);
   color: var(--primary);
   border-color: var(--primary);
+}
+
+.basis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.basis-item {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  background: var(--bg-surface);
+}
+
+.basis-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.basis-law {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.basis-article {
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--border-light);
 }
 
 .grid-layout {
@@ -373,6 +454,39 @@ function resetForm() {
   position: absolute;
   left: 0;
   color: var(--text-muted);
+}
+
+.result-box-title {
+  font-size: 0.875rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-copy-small {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-copy-small:hover {
+  opacity: 1;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 
 .empty-state {

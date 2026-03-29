@@ -5,9 +5,9 @@
       <div class="flex justify-between items-center mb-4">
         <div>
           <h2 class="text-xl font-semibold text-strong m-0">合同台账与明细查询</h2>
-          <p class="text-sm text-muted mt-1 m-0">All Contracts Management and Tracking</p>
+          <p class="text-sm text-muted mt-1 m-0">对接后端分页列表，支持关键词、类型与状态筛选</p>
         </div>
-        <button class="btn btn-primary px-4 py-2">
+        <button type="button" class="btn btn-primary px-4 py-2" @click="goDraft">
           <span class="icon mr-2">➕</span>新建合同
         </button>
       </div>
@@ -16,31 +16,33 @@
       <div class="filter-bar flex gap-4 pt-4 border-t items-end">
         <div class="form-group flex-1">
           <label class="filter-label">合同关键字</label>
-          <input type="text" class="form-input" placeholder="输入合同名称、编号搜寻..." />
+          <input
+            v-model.trim="keyword"
+            type="text"
+            class="form-input"
+            placeholder="名称或编号…"
+            @keyup.enter="applyFilters"
+          />
         </div>
         <div class="form-group flex-1">
-          <label class="filter-label">管理台账视角</label>
-          <select class="form-input">
-            <option value="ALL">全部合同</option>
-            <option value="MINE">我起草的</option>
-            <option value="DEPARTMENT">本部门的数据</option>
+          <label class="filter-label">合同类型</label>
+          <select v-model="contractType" class="form-input">
+            <option value="">全部类型</option>
+            <option v-for="t in contractTypes" :key="t" :value="t">{{ t }}</option>
           </select>
         </div>
         <div class="form-group flex-1">
-          <label class="filter-label">处理状态</label>
-          <select class="form-input">
+          <label class="filter-label">当前状态</label>
+          <select v-model="status" class="form-input">
             <option value="">全部状态</option>
-            <option value="0">起草中 / 草稿</option>
-            <option value="1">审批流转中</option>
-            <option value="2">已生效 / 归档</option>
-            <option value="3">已驳回</option>
+            <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
           </select>
         </div>
         <div class="form-group">
-          <button class="btn btn-secondary px-6">重 置</button>
+          <button type="button" class="btn btn-secondary px-6" :disabled="loading" @click="resetFilters">重 置</button>
         </div>
         <div class="form-group">
-          <button class="btn btn-primary px-6">查 询</button>
+          <button type="button" class="btn btn-primary px-6" :disabled="loading" @click="applyFilters">查 询</button>
         </div>
       </div>
     </div>
@@ -48,59 +50,82 @@
     <!-- Data Table Card -->
     <div class="card overflow-hidden">
       <div class="card-header pb-4 bg-app flex justify-between items-center">
-        <div class="flex items-center gap-3">
-          <span class="text-sm font-medium text-main">共找到 12 条关联数据</span>
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-sm font-medium text-main">
+            共 {{ totalElements }} 条，第 {{ page + 1 }} / {{ totalPages || 1 }} 页
+          </span>
+          <span v-if="errorBanner" class="text-sm text-danger">{{ errorBanner }}</span>
         </div>
-        <button class="btn btn-icon btn-secondary text-sm">
-          <span class="icon mr-1">📥</span> 导出本页报表
-        </button>
       </div>
-      
-      <div class="table-responsive">
+
+      <div class="table-responsive" :class="{ 'opacity-60': loading }">
         <table class="data-table text-sm w-full">
           <thead>
             <tr>
-              <th width="15%" class="text-left">合同编号</th>
-              <th width="25%" class="text-left">合同名称</th>
-              <th width="15%" class="text-left">合同类型</th>
-              <th width="15%" class="text-right">涉及金额 (元)</th>
-              <th width="10%" class="text-center">当前状态</th>
-              <th width="15%" class="text-center">更新时间</th>
-              <th width="10%" class="text-center">操作</th>
+              <th width="14%" class="text-left">合同编号</th>
+              <th width="22%" class="text-left">合同名称</th>
+              <th width="12%" class="text-left">类型</th>
+              <th width="18%" class="text-left">相对方</th>
+              <th width="12%" class="text-right">金额 (元)</th>
+              <th width="12%" class="text-center">状态</th>
+              <th width="10%" class="text-center">更新</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in mockData" :key="row.id" class="table-row">
-              <td class="font-mono text-muted">{{ row.no }}</td>
+            <tr v-if="!loading && rows.length === 0">
+              <td colspan="7" class="text-center text-muted py-8">暂无数据</td>
+            </tr>
+            <tr v-for="row in rows" :key="row.id" class="table-row">
+              <td class="font-mono text-muted">{{ row.contractNo }}</td>
               <td class="font-medium text-strong">
-                <a href="javascript:void(0)" class="text-primary hover-underline">{{ row.name }}</a>
+                <a href="javascript:void(0)" class="text-primary hover-underline" @click.prevent="showDetails(row)">{{ row.name }}</a>
               </td>
               <td>
-                <span class="badge badge-normal">{{ row.typeStr }}</span>
+                <span class="badge badge-normal">{{ row.contractType }}</span>
               </td>
-              <td class="text-right font-mono">{{ formatCurrency(row.amount) }}</td>
+              <td class="text-muted text-xs">{{ row.partyB }}</td>
+              <td class="text-right font-mono">{{ formatAmount(row.amount) }}</td>
               <td class="text-center">
-                <span class="status-indicator" :class="'status-' + row.statusColor"></span>
-                <span :class="'text-' + row.statusColor">{{ row.statusStr }}</span>
+                <span class="status-indicator" :class="'status-' + statusTone(row.status)"></span>
+                <span :class="'text-' + statusTone(row.status)">{{ statusLabel(row.status) }}</span>
+                <select
+                  class="form-input text-xs mt-2 status-select"
+                  :value="row.status"
+                  :disabled="statusBusyId === row.id"
+                  @change="onStatusChange(row, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
               </td>
-              <td class="text-center text-muted">{{ row.time }}</td>
-              <td class="text-center">
-                <button class="btn btn-link text-primary mr-2">详情</button>
-                <button v-if="row.status === 0" class="btn btn-link text-primary">续编</button>
-              </td>
+              <td class="text-center text-muted">{{ formatTime(row.updatedAt) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      
+
       <!-- Pagination -->
-      <div class="card-footer pt-4 border-t flex justify-end items-center text-sm">
-        <span class="text-muted mr-4">当前显示第 1-10 条</span>
+      <div class="card-footer pt-4 border-t flex justify-end items-center text-sm flex-wrap gap-3">
+        <span class="text-muted">每页 {{ size }} 条</span>
         <div class="pagination flex gap-1">
-          <button class="page-btn disabled">&lt;</button>
-          <button class="page-btn active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">&gt;</button>
+          <button
+            type="button"
+            class="page-btn"
+            :class="{ disabled: loading || page <= 0 }"
+            :disabled="loading || page <= 0"
+            @click="goPage(page - 1)"
+          >
+            &lt;
+          </button>
+          <button type="button" class="page-btn active">{{ page + 1 }}</button>
+          <button
+            type="button"
+            class="page-btn"
+            :class="{ disabled: loading || page >= totalPages - 1 }"
+            :disabled="loading || page >= totalPages - 1 || totalPages === 0"
+            @click="goPage(page + 1)"
+          >
+            &gt;
+          </button>
         </div>
       </div>
     </div>
@@ -108,19 +133,165 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { fetchContracts, updateContractStatus } from '@/shared/api/contracts'
+import type { ContractItem, ContractStatus } from '@/shared/types/contracts'
 
-const mockData = reactive([
-  { id: 1, no: 'CT-2026-A1X91', name: '2026年度云服务框架采购合作协议', typeStr: '采购合同', amount: 1550000, status: 1, statusStr: '流转中', statusColor: 'warning', time: '今天 10:24' },
-  { id: 2, no: 'CT-2026-B9402', name: '新办公园区弱电工程施工合同', typeStr: '工程合同', amount: 890000, status: 2, statusStr: '已生效', statusColor: 'success', time: '昨天 15:30' },
-  { id: 3, no: 'CT-2026-A1X44', name: '测试用-人事外包补充协议', typeStr: '服务合同', amount: 50000, status: 0, statusStr: '起草中', statusColor: 'muted', time: '2026-03-12' },
-  { id: 4, no: 'CT-2026-C8221', name: '高管竞业禁止与保密期权协议', typeStr: 'NDA', amount: 0, status: 3, statusStr: '已驳回', statusColor: 'danger', time: '2026-03-10' },
-  { id: 5, no: 'CT-2026-A7851', name: '核心机房第二季度软硬件代维合同', typeStr: '代维合同', amount: 245000, status: 2, statusStr: '已生效', statusColor: 'success', time: '2026-03-01' },
-]);
+const router = useRouter()
 
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(val);
-};
+const loading = ref(false)
+const statusBusyId = ref<number | null>(null)
+const errorBanner = ref('')
+
+const keyword = ref('')
+const contractType = ref('')
+const status = ref<'' | ContractStatus>('')
+
+const page = ref(0)
+const size = ref(10)
+const totalElements = ref(0)
+const totalPages = ref(0)
+const rows = ref<ContractItem[]>([])
+
+const contractTypes = [
+  '采购合同',
+  '工程合同',
+  '服务合同',
+  '保密/期权',
+  '运维服务',
+  '租赁合同',
+  '技术开发',
+]
+
+const statusOptions: { value: ContractStatus; label: string }[] = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'UNDER_REVIEW', label: '审查中' },
+  { value: 'SIGNED', label: '已签署' },
+  { value: 'IN_PROGRESS', label: '执行中' },
+  { value: 'COMPLETED', label: '已完成' },
+  { value: 'TERMINATED', label: '已终止' },
+]
+
+const query = computed(() => ({
+  page: page.value,
+  size: size.value,
+  keyword: keyword.value || undefined,
+  type: contractType.value || undefined,
+  status: (status.value || undefined) as ContractStatus | undefined,
+}))
+
+function statusLabel(s: ContractStatus): string {
+  return statusOptions.find((o) => o.value === s)?.label ?? s
+}
+
+function statusTone(s: ContractStatus): 'success' | 'warning' | 'danger' | 'muted' {
+  switch (s) {
+    case 'DRAFT':
+      return 'muted'
+    case 'UNDER_REVIEW':
+      return 'warning'
+    case 'SIGNED':
+    case 'IN_PROGRESS':
+    case 'COMPLETED':
+      return 'success'
+    case 'TERMINATED':
+      return 'danger'
+    default:
+      return 'muted'
+  }
+}
+
+function formatAmount(amount: number): string {
+  return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount)
+}
+
+function formatTime(iso: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function errMessage(e: unknown): string {
+  if (e instanceof Error) return e.message
+  return '操作失败，请重试'
+}
+
+async function loadList(): Promise<void> {
+  errorBanner.value = ''
+  loading.value = true
+  try {
+    const res = await fetchContracts(query.value)
+    rows.value = res.content
+    totalElements.value = res.totalElements
+    totalPages.value = res.totalPages === 0 ? 1 : res.totalPages
+  } catch (e: unknown) {
+    errorBanner.value = errMessage(e)
+    rows.value = []
+    totalElements.value = 0
+    totalPages.value = 1
+  } finally {
+    loading.value = false
+  }
+}
+
+function applyFilters(): void {
+  page.value = 0
+  void loadList()
+}
+
+function resetFilters(): void {
+  keyword.value = ''
+  contractType.value = ''
+  status.value = ''
+  page.value = 0
+  void loadList()
+}
+
+function goPage(p: number): void {
+  if (p < 0 || p > totalPages.value - 1) return
+  page.value = p
+  void loadList()
+}
+
+function goDraft(): void {
+  router.push({ name: 'contractDraft' })
+}
+
+function showDetails(row: ContractItem): void {
+  const lines = [
+    `编号：${row.contractNo}`,
+    `名称：${row.name}`,
+    `类型：${row.contractType}`,
+    `甲方：${row.partyA}`,
+    `乙方：${row.partyB}`,
+    `金额：${formatAmount(row.amount)}`,
+    `状态：${statusLabel(row.status)}`,
+    row.source ? `来源：${row.source}` : '',
+  ].filter(Boolean)
+  window.alert(lines.join('\n'))
+}
+
+async function onStatusChange(row: ContractItem, next: string): Promise<void> {
+  const newStatus = next as ContractStatus
+  if (newStatus === row.status) return
+  errorBanner.value = ''
+  statusBusyId.value = row.id
+  try {
+    await updateContractStatus(row.id, newStatus)
+    await loadList()
+  } catch (e: unknown) {
+    errorBanner.value = errMessage(e)
+    await loadList()
+  } finally {
+    statusBusyId.value = null
+  }
+}
+
+onMounted(() => {
+  void loadList()
+})
 </script>
 
 <style scoped>
@@ -138,8 +309,9 @@ const formatCurrency = (val: number) => {
 .mb-6 { margin-bottom: 1.5rem; }
 .mb-4 { margin-bottom: 1rem; }
 .mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
 .mr-2 { margin-right: 0.5rem; }
-.mr-4 { margin-right: 1rem; }
+.py-8 { padding-top: 2rem; padding-bottom: 2rem; }
 .pt-4 { padding-top: 1rem; }
 .pb-4 { padding-bottom: 1rem; }
 .p-6 { padding: 1.5rem; }
@@ -147,6 +319,7 @@ const formatCurrency = (val: number) => {
 .border-t { border-top: 1px solid var(--border-light); }
 .bg-app { background-color: var(--bg-app); }
 .overflow-hidden { overflow: hidden; }
+.opacity-60 { opacity: 0.65; }
 
 .text-xl { font-size: 1.25rem; }
 .text-sm { font-size: 0.875rem; }
@@ -171,6 +344,7 @@ const formatCurrency = (val: number) => {
 
 .flex { display: flex; }
 .flex-1 { flex: 1; }
+.flex-wrap { flex-wrap: wrap; }
 .gap-1 { gap: 0.25rem; }
 .gap-3 { gap: 0.75rem; }
 .gap-4 { gap: 1rem; }
@@ -180,7 +354,6 @@ const formatCurrency = (val: number) => {
 .items-end { align-items: flex-end; }
 .hover-underline:hover { text-decoration: underline; }
 
-/* Filter Bar */
 .filter-label {
   display: block;
   font-size: 0.75rem;
@@ -206,7 +379,13 @@ const formatCurrency = (val: number) => {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Data Table */
+.status-select {
+  max-width: 7.5rem;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+
 .data-table {
   width: 100%;
   border-collapse: separate;
@@ -237,7 +416,6 @@ const formatCurrency = (val: number) => {
   background-color: rgba(0,0,0,0.02);
 }
 
-/* Status Indicator */
 .status-indicator {
   display: inline-block;
   width: 8px;
@@ -255,16 +433,6 @@ const formatCurrency = (val: number) => {
   color: var(--text-main);
 }
 
-.btn-link {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-weight: 500;
-}
-.btn-link:hover { text-decoration: underline; }
-
-/* Pagination */
 .page-btn {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);

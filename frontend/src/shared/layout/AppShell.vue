@@ -41,9 +41,6 @@
         <div class="header-left">
           <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
-        <div class="header-right">
-          <span class="badge badge-primary">Demo Environment</span>
-        </div>
       </header>
 
       <main class="page-content">
