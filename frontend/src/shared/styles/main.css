@@ -4,40 +4,43 @@
   --primary-hover: #1d4ed8;
   --primary-soft: #eff6ff;
   
-  --bg-app: #f4f7f9; /* changed to premium silver-blue gray */
+  --bg-app: #f9fafb; /* Cleaner, lighter minimal background */
   --bg-surface: #ffffff;
-  --bg-surface-hover: #f8fafc;
+  --bg-surface-hover: #f1f5f9;
   
-  --sidebar-bg-from: #0f172a;
-  --sidebar-bg-to: #1e293b;
-  --sidebar-text: #f8fafc;
-  --sidebar-text-muted: #94a3b8;
-  --sidebar-border: rgba(255,255,255,0.05);
+  /* Light Sidebar Configuration */
+  --sidebar-bg-from: #ffffff;
+  --sidebar-bg-to: #ffffff;
+  --sidebar-text: #1e293b;
+  --sidebar-text-muted: #64748b;
+  --sidebar-bg-hover: #f1f5f9;
+  --sidebar-border: #e2e8f0;
   
   --text-main: #334155;
   --text-strong: #0f172a;
   --text-muted: #64748b;
   
-  --border-light: rgba(0,0,0,0.04);
-  --border-strong: rgba(0,0,0,0.08);
+  --border-light: #e2e8f0;
+  --border-strong: #cbd5e1;
   
-  --success: #16a34a;
-  --success-bg: #dcfce7;
+  --success: #059669;
+  --success-bg: #d1fae5;
   --warning: #ca8a04;
   --warning-bg: #fef08a;
   --danger: #dc2626;
   --danger-bg: #fee2e2;
 
-  /* Premium Shadows */
-  --shadow-sm: 0 2px 4px 0 rgba(0,0,0,0.02);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
-  --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.04), 0 8px 10px -6px rgba(0,0,0,0.02);
+  /* Refined Premium Shadows (Layered) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-glow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 
-  /* Border Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* Enterprise Border Radius (Tightened/Slightly sharpened) */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
   
   /* Typography */
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;

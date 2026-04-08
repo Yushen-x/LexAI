@@ -20,6 +20,7 @@
           class="nav-link"
           active-class="nav-link-active"
         >
+          <component :is="item.icon" class="nav-icon" />
           {{ item.title }}
         </RouterLink>
       </nav>
@@ -57,38 +58,26 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import {
+  LayoutDashboard,
+  FileEdit,
+  Files,
+  ListTodo,
+  MessageSquare,
+  BarChart2,
+  FileSearch
+} from 'lucide-vue-next';
 
 const route = useRoute();
 
 const navItems = [
-  {
-    to: '/dashboard',
-    title: '工作台 (Dashboard)'
-  },
-  {
-    to: '/contract-draft',
-    title: '合同起草 (AI Generate)'
-  },
-  {
-    to: '/contract-list',
-    title: '合同台账 (Contract List)'
-  },
-  {
-    to: '/workflow-pending',
-    title: '待办任务 (Workflow)'
-  },
-  {
-    to: '/consultation',
-    title: '法律咨询 (Consultation)'
-  },
-  {
-    to: '/case-analysis',
-    title: '案件分析 (Analysis)'
-  },
-  {
-    to: '/contract-review',
-    title: '合同审查 (Review)'
-  }
+  { to: '/dashboard', title: '工作台', icon: LayoutDashboard },
+  { to: '/contract-draft', title: '合同起草', icon: FileEdit },
+  { to: '/contract-list', title: '合同台账', icon: Files },
+  { to: '/workflow-pending', title: '待办任务', icon: ListTodo },
+  { to: '/consultation', title: '法律咨询', icon: MessageSquare },
+  { to: '/case-analysis', title: '案件分析', icon: BarChart2 },
+  { to: '/contract-review', title: '合同审查', icon: FileSearch }
 ];
 
 const pageTitle = computed(() => String(route.meta.title ?? '概览'));
@@ -105,13 +94,12 @@ const pageTitle = computed(() => String(route.meta.title ?? '概览'));
 .app-sidebar {
   width: 280px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, var(--sidebar-bg-from) 0%, var(--sidebar-bg-to) 100%);
+  background: var(--sidebar-bg-from);
   border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
   color: var(--sidebar-text);
   z-index: 20;
-  box-shadow: 4px 0 24px rgba(0,0,0,0.1);
 }
 
 .sidebar-header {
@@ -123,25 +111,27 @@ const pageTitle = computed(() => String(route.meta.title ?? '概览'));
   display: flex;
   align-items: center;
   gap: 1rem;
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .brand-link:hover {
-  color: #fff;
-  opacity: 0.9;
+  color: var(--primary);
+  opacity: 1;
 }
 
 .brand-logo {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: #ffffff;
+  color: var(--primary);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 1.25rem;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: var(--shadow-sm);
 }
 
 .brand-text {
@@ -183,21 +173,32 @@ const pageTitle = computed(() => String(route.meta.title ?? '概览'));
   margin-bottom: 0.25rem;
 }
 
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 0.75rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--sidebar-bg-hover);
   color: var(--sidebar-text);
-  transform: translateX(4px);
+}
+
+.nav-link:hover .nav-icon {
+  opacity: 1;
 }
 
 .nav-link-active {
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.15) 0%, transparent 100%);
-  border-left: 3px solid var(--primary);
-  color: #fff;
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  background: var(--bg-app);
+  color: var(--primary);
+  font-weight: 600;
 }
 
-.nav-link-active:hover {
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.25) 0%, transparent 100%);
+.nav-link-active .nav-icon {
+  opacity: 1;
+  color: var(--primary);
 }
 
 .sidebar-footer {
@@ -215,12 +216,12 @@ const pageTitle = computed(() => String(route.meta.title ?? '概览'));
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: var(--sidebar-bg-hover);
+  background-color: var(--primary-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  color: var(--sidebar-text);
+  color: var(--primary);
 }
 
 .user-info {

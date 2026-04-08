@@ -3,30 +3,22 @@
     <p v-if="errorBanner" class="error-banner mb-6">{{ errorBanner }}</p>
 
     <!-- Welcome Banner Section -->
-    <div class="welcome-banner mb-6">
+    <div class="welcome-banner mb-6 card flex justify-between items-center" style="padding: 1.5rem 2rem; border-left: 4px solid var(--primary); background: var(--bg-surface); color: var(--text-strong); box-shadow: var(--shadow-sm);">
       <div class="welcome-content">
-        <h2 class="welcome-title">欢迎回来, {{ userName }}</h2>
-        <p class="welcome-subtitle">
+        <h2 class="welcome-title" style="margin: 0 0 0.25rem 0; font-size: 1.5rem; color: var(--text-strong); font-weight: 700;">欢迎回来, {{ userName }}</h2>
+        <p class="welcome-subtitle" style="margin: 0; color: var(--text-muted); font-size: 0.9375rem;">
           {{ overview?.positioning || 'LexAI 智慧合同管理系统已准备就绪' }}
         </p>
-        <div v-if="overview?.projectName" class="user-meta mt-3">
+        <div v-if="overview?.projectName" class="user-meta mt-3 flex items-center">
           <span class="badge badge-primary mr-2">{{ overview.projectName }}</span>
-          <span
-            class="badge"
-            style="background: rgba(255, 255, 255, 0.2); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3)"
-          >
+          <span class="badge" style="background: var(--bg-app); color: var(--text-muted); border: 1px solid var(--border-light)">
             工作台
           </span>
         </div>
       </div>
       <div class="welcome-action">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          style="background: rgba(255, 255, 255, 0.1); color: #fff; border-color: rgba(255, 255, 255, 0.2)"
-          @click="goWorkflow"
-        >
-          查看待办
+        <button type="button" class="btn btn-primary" @click="goWorkflow">
+          处理待办
         </button>
       </div>
     </div>
@@ -35,7 +27,7 @@
     <div class="stats-grid mb-6">
       <div v-for="(stat, idx) in adminStats" :key="idx" class="stat-card">
         <div class="stat-icon-wrapper" :style="{ backgroundColor: stat.bgColor, color: stat.color }">
-          <span class="stat-icon-text">{{ stat.icon }}</span>
+          <component :is="stat.icon" style="width: 28px; height: 28px; stroke-width: 2px;" />
         </div>
         <div class="stat-info">
           <h4 class="stat-label">{{ stat.title }}</h4>
@@ -52,19 +44,19 @@
           </div>
           <div class="quick-actions-grid pt-4">
             <button type="button" class="action-btn" @click="goContractList">
-              <div class="icon-box bg-blue">C</div>
+              <div class="icon-box" style="background: #eff6ff; color: #3b82f6;"><IconContract style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">合同台账</span>
             </button>
             <button type="button" class="action-btn" @click="goWorkflow">
-              <div class="icon-box bg-green">W</div>
+              <div class="icon-box" style="background: #fef3c7; color: #f59e0b;"><IconWorkflow style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">待办任务</span>
             </button>
             <button type="button" class="action-btn" @click="goConsultation">
-              <div class="icon-box bg-orange">L</div>
+              <div class="icon-box" style="background: #f3e8ff; color: #8b5cf6;"><IconConsultation style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">法律咨询</span>
             </button>
             <button type="button" class="action-btn" @click="goContractReview">
-              <div class="icon-box bg-purple">R</div>
+              <div class="icon-box" style="background: #d1fae5; color: #10b981;"><IconReview style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">合同审查</span>
             </button>
           </div>
@@ -126,8 +118,8 @@
               暂无近期任务记录
             </div>
             <div v-for="(activity, index) in recentActivities" :key="index" class="activity-item">
-              <div class="activity-icon" :style="{ backgroundColor: activity.color }">
-                {{ activity.icon }}
+              <div class="activity-icon" :style="{ backgroundColor: activity.bgColor, color: activity.color }">
+                <component :is="activity.icon" style="width: 18px; height: 18px;" />
               </div>
               <div class="activity-content">
                 <div class="activity-text">{{ activity.text }}</div>
@@ -144,6 +136,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { 
+  Files as IconContract, 
+  ListTodo as IconWorkflow, 
+  Layers as IconCapability, 
+  History as IconHistory,
+  MessageSquare as IconConsultation,
+  BarChart2 as IconAnalysis,
+  FileSearch as IconReview,
+  FileEdit as IconDraft
+} from 'lucide-vue-next';
 import { fetchContracts } from '@/shared/api/contracts';
 import { fetchHealth, fetchOverview } from '@/shared/api/legal';
 import { fetchTasks } from '@/shared/api/tasks';
@@ -211,30 +213,30 @@ const adminStats = computed(() => [
   {
     title: '合同总数',
     value: formatInt(contractTotal.value),
-    icon: 'C',
-    color: '#dc2626',
-    bgColor: '#fee2e2',
+    icon: IconContract,
+    color: '#3b82f6',
+    bgColor: '#eff6ff',
   },
   {
     title: '待处理任务',
     value: formatInt(pendingTaskCount.value),
-    icon: 'W',
-    color: '#2563eb',
-    bgColor: '#eff6ff',
+    icon: IconWorkflow,
+    color: '#f59e0b',
+    bgColor: '#fef3c7',
   },
   {
     title: '能力模块',
     value: formatInt(capabilityCount.value),
-    icon: 'K',
-    color: '#ca8a04',
-    bgColor: '#fef08a',
+    icon: IconCapability,
+    color: '#8b5cf6',
+    bgColor: '#f3e8ff',
   },
   {
     title: '任务记录',
     value: formatInt(allTaskCount.value),
-    icon: 'T',
-    color: '#16a34a',
-    bgColor: '#dcfce7',
+    icon: IconHistory,
+    color: '#10b981',
+    bgColor: '#d1fae5',
   },
 ]);
 
@@ -277,22 +279,23 @@ const recentActivities = computed(() => {
   );
   const top = sorted.slice(0, 5);
   const colorByType: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: '#2563eb',
-    CASE_ANALYSIS: '#16a34a',
-    CONTRACT_REVIEW: '#ca8a04',
-    CONTRACT_DRAFT: '#a855f7',
+    LEGAL_CONSULTATION: '#3b82f6',
+    CASE_ANALYSIS: '#10b981',
+    CONTRACT_REVIEW: '#f59e0b',
+    CONTRACT_DRAFT: '#8b5cf6',
   };
-  const iconByType: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: 'L',
-    CASE_ANALYSIS: 'A',
-    CONTRACT_REVIEW: 'R',
-    CONTRACT_DRAFT: 'D',
+  const iconByType: Record<WorkspaceTaskType, any> = {
+    LEGAL_CONSULTATION: IconConsultation,
+    CASE_ANALYSIS: IconAnalysis,
+    CONTRACT_REVIEW: IconReview,
+    CONTRACT_DRAFT: IconDraft,
   };
   return top.map((t) => ({
     text: `${typeLabel(t.type)}：${t.title}`,
     time: formatRelative(t.createdAt),
-    icon: iconByType[t.type] ?? '·',
-    color: colorByType[t.type] ?? '#64748b',
+    icon: iconByType[t.type] || IconHistory,
+    color: colorByType[t.type] || '#64748b',
+    bgColor: (colorByType[t.type] || '#64748b') + '15',
   }));
 });
 
@@ -464,30 +467,7 @@ onMounted(() => {
   text-decoration: underline;
 }
 
-.welcome-banner {
-  background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: var(--shadow-md);
-}
-
-.welcome-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
-  color: white;
-}
-
-.welcome-subtitle {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 1rem;
-  max-width: 42rem;
-  line-height: 1.5;
-}
+/* Welcome Banner styling replaced by inline unified styles */
 
 .stats-grid {
   display: grid;
