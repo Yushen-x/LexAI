@@ -3,6 +3,8 @@ package com.lexai.backend.interfaces.rest;
 import com.lexai.backend.application.dto.contract.ContractListResponse;
 import com.lexai.backend.application.dto.contract.ContractResponse;
 import com.lexai.backend.application.dto.contract.CreateContractRequest;
+import com.lexai.backend.application.dto.contract.UpdateContractReviewRequest;
+import com.lexai.backend.application.dto.contract.UpdateContractRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractStatusRequest;
 import com.lexai.backend.application.service.ContractService;
 import com.lexai.backend.common.api.ApiResponse;
@@ -52,12 +54,28 @@ public class ContractController {
         return ApiResponse.success(contractService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public ApiResponse<ContractResponse> update(
+            @PathVariable long id,
+            @Valid @RequestBody UpdateContractRequest request
+    ) {
+        return ApiResponse.success(contractService.update(id, request));
+    }
+
     @PutMapping("/{id}/status")
     public ApiResponse<ContractResponse> updateStatus(
             @PathVariable long id,
             @Valid @RequestBody UpdateContractStatusRequest request
     ) {
         return ApiResponse.success(contractService.updateStatus(id, request));
+    }
+
+    @PutMapping("/{id}/review")
+    public ApiResponse<ContractResponse> updateReview(
+            @PathVariable long id,
+            @RequestBody UpdateContractReviewRequest request
+    ) {
+        return ApiResponse.success(contractService.updateReview(id, request));
     }
 
     @DeleteMapping("/{id}")

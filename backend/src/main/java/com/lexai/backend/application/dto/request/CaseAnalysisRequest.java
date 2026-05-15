@@ -6,7 +6,10 @@ import java.util.List;
 public record CaseAnalysisRequest(
         @NotBlank(message = "caseSummary must not be blank")
         String caseSummary,
-        List<String> evidencePoints
+        List<String> evidencePoints,
+        Boolean createFollowUpTask
 ) {
+    public boolean shouldCreateFollowUpTask() {
+        return createFollowUpTask == null || createFollowUpTask;
+    }
 }
-

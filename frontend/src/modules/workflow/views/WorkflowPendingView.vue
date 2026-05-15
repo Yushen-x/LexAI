@@ -4,8 +4,10 @@
     <div class="header-section mb-6">
       <div class="flex justify-between items-end flex-wrap gap-3">
         <div>
-          <h2 class="text-xl font-semibold text-strong m-0">工作流与待办任务</h2>
-          <p class="text-sm text-muted mt-1 m-0">对接工作台任务 API，按状态筛选并更新处理进度</p>
+          <h2 class="text-xl font-semibold text-strong m-0">合同审查待办</h2>
+          <p class="text-sm text-muted mt-1 m-0">
+            集中跟进等待人工确认的合同审查；决策保存后会自动同步合同台账与待办状态。
+          </p>
         </div>
         <div class="stats-badge">
           当前待处理 <span class="text-primary font-bold">{{ pendingCount }}</span> 项
@@ -20,7 +22,7 @@
       <!-- Left: Filter & Categories -->
       <div class="sidebar-col">
         <div class="card mb-4 p-4">
-          <h4 class="text-sm font-semibold mb-3 m-0">任务分类</h4>
+          <h4 class="text-sm font-semibold mb-3 m-0">按状态筛选</h4>
           <ul class="nav-list text-sm">
             <li
               v-for="item in navItems"
@@ -34,17 +36,26 @@
             </li>
           </ul>
         </div>
+
+        <div class="card p-4 hint-card">
+          <h4 class="text-sm font-semibold mb-2 m-0">三者关系速览</h4>
+          <ul class="hint-list text-xs text-muted">
+            <li><strong class="text-strong">合同台账</strong>：所有合同的总账与详情入口。</li>
+            <li><strong class="text-strong">合同审查</strong>：对单份合同执行 AI + 人工双重审查的工作页。</li>
+            <li><strong class="text-strong">合同审查待办</strong>：等待人工拍板的合同清单（你正在看的页面）。</li>
+          </ul>
+        </div>
       </div>
 
       <!-- Right: Task List -->
       <div class="main-col flex-col flex gap-4">
         <div v-if="loading && tasks.length === 0" class="card p-5 text-muted text-sm">加载中…</div>
-        <div v-if="!loading && tasks.length === 0" class="card p-5 text-muted text-sm">该分类下暂无任务</div>
+        <div v-if="!loading && tasks.length === 0" class="card p-5 text-muted text-sm">该状态下暂无任务</div>
 
         <div v-for="task in tasks" :key="task.id" class="card task-card p-5">
           <div class="flex justify-between items-start mb-3 flex-wrap gap-2">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="badge badge-normal">{{ typeLabel(task.type) }}</span>
+              <span class="badge badge-primary">合同审查</span>
               <h3 class="task-title m-0 font-medium">{{ task.title }}</h3>
             </div>
             <span class="badge" :class="statusBadgeClass(task.status)">
@@ -58,8 +69,8 @@
               <span class="meta-value font-mono">{{ task.taskNo }}</span>
             </div>
             <div class="meta-item">
-              <span class="meta-label">关联 ID:</span>
-              <span class="meta-value font-mono">{{ task.relatedId }}</span>
+              <span class="meta-label">合同 ID:</span>
+              <span class="meta-value font-mono">{{ task.relatedId || '—' }}</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">发起人:</span>
@@ -72,22 +83,26 @@
           </div>
 
           <div class="flex justify-between items-center mt-2 border-t pt-3 flex-wrap gap-3">
-            <div class="text-xs text-muted">记录 ID：<span class="font-mono">{{ task.id }}</span></div>
+            <div class="text-xs text-muted">
+              在合同审查页做出决策后，待办状态会自动同步
+            </div>
             <div class="flex gap-3 items-center flex-wrap">
-              <label class="status-field text-xs text-muted flex items-center gap-2">
-                <span>变更状态</span>
-                <select
-                  class="form-select"
-                  :value="task.status"
-                  :disabled="busyId === task.id"
-                  @change="onStatusChange(task, ($event.target as HTMLSelectElement).value)"
-                >
-                  <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
-                    {{ opt.label }}
-                  </option>
-                </select>
-              </label>
-              <button type="button" class="btn btn-secondary text-sm" @click="showDetails(task)">详情</button>
+              <button
+                v-if="canOpenContract(task)"
+                type="button"
+                class="btn btn-secondary text-sm"
+                @click="openContract(task)"
+              >
+                查看合同档案
+              </button>
+              <button
+                v-if="canOpenContract(task)"
+                type="button"
+                class="btn btn-primary text-sm"
+                @click="openReview(task)"
+              >
+                去审查 / 决策
+              </button>
             </div>
           </div>
         </div>
@@ -98,9 +113,11 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { fetchTasks, updateTaskStatus } from '@/shared/api/tasks';
-import type { TaskItem, WorkspaceTaskStatus, WorkspaceTaskType } from '@/shared/types/tasks';
+import { useRouter } from 'vue-router';
+import { fetchTasks } from '@/shared/api/tasks';
+import type { TaskItem, WorkspaceTaskStatus } from '@/shared/types/tasks';
 
+const router = useRouter();
 const loading = ref(false);
 const busyId = ref<number | null>(null);
 const errorBanner = ref('');
@@ -116,25 +133,15 @@ const navItems = [
   { key: 'ALL', label: '全部', icon: '📋' },
 ];
 
-const statusOptions: { value: WorkspaceTaskStatus; label: string }[] = [
-  { value: 'PENDING', label: '待处理' },
-  { value: 'IN_PROGRESS', label: '处理中' },
-  { value: 'COMPLETED', label: '已完成' },
-  { value: 'REJECTED', label: '已驳回' },
-];
-
-function typeLabel(t: WorkspaceTaskType): string {
-  const m: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: '法律咨询',
-    CASE_ANALYSIS: '案件分析',
-    CONTRACT_REVIEW: '合同审查',
-    CONTRACT_DRAFT: '合同起草',
-  };
-  return m[t] ?? t;
-}
+const statusLabels: Record<WorkspaceTaskStatus, string> = {
+  PENDING: '待处理',
+  IN_PROGRESS: '处理中',
+  COMPLETED: '已完成',
+  REJECTED: '已驳回',
+};
 
 function statusLabel(s: WorkspaceTaskStatus): string {
-  return statusOptions.find((o) => o.value === s)?.label ?? s;
+  return statusLabels[s] ?? s;
 }
 
 function statusBadgeClass(s: WorkspaceTaskStatus): string {
@@ -203,33 +210,38 @@ function selectNav(key: string): void {
   void loadList();
 }
 
-function showDetails(task: TaskItem): void {
-  const lines = [
-    `任务编号：${task.taskNo}`,
-    `标题：${task.title}`,
-    `类型：${typeLabel(task.type)}`,
-    `关联 ID：${task.relatedId}`,
-    `发起人：${task.initiator}`,
-    `状态：${statusLabel(task.status)}`,
-    `创建：${formatTime(task.createdAt)}`,
-  ];
-  window.alert(lines.join('\n'));
+function relatedContractId(task: TaskItem | null): number | null {
+  if (!task?.relatedId) return null;
+  const parsed = Number(task.relatedId);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-async function onStatusChange(task: TaskItem, next: string): Promise<void> {
-  const newStatus = next as WorkspaceTaskStatus;
-  if (newStatus === task.status) return;
-  busyId.value = task.id;
-  errorBanner.value = '';
+function canOpenContract(task: TaskItem | null): boolean {
+  return task?.type === 'CONTRACT_REVIEW' && relatedContractId(task) !== null;
+}
+
+async function openContract(task: TaskItem | null): Promise<void> {
+  const contractId = relatedContractId(task);
+  if (contractId === null) return;
   try {
-    await updateTaskStatus(task.id, newStatus);
-    await loadList();
-  } catch (e: unknown) {
-    errorBanner.value = errMessage(e);
-    await loadList();
-  } finally {
-    busyId.value = null;
+    const { http } = await import('@/shared/api/http');
+    await http.get(`/contracts/${contractId}`);
+    router.push({
+      name: 'contractList',
+      query: { contractId: String(contractId) }
+    });
+  } catch {
+    errorBanner.value = `合同（ID=${contractId}）已被删除或不存在，无法查看档案。`;
   }
+}
+
+function openReview(task: TaskItem | null): void {
+  const contractId = relatedContractId(task);
+  if (contractId === null) return;
+  router.push({
+    name: 'contractReview',
+    query: { contractId: String(contractId) }
+  });
 }
 
 onMounted(() => {
@@ -273,6 +285,9 @@ onMounted(() => {
 }
 .mb-3 {
   margin-bottom: 0.75rem;
+}
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 .mt-1 {
   margin-top: 0.25rem;
@@ -443,6 +458,19 @@ onMounted(() => {
   color: white;
 }
 
+.hint-card {
+  border: 1px dashed var(--border-light);
+}
+
+.hint-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  line-height: 1.5;
+}
+
 .task-card {
   transition:
     transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
@@ -481,12 +509,6 @@ onMounted(() => {
 .meta-value {
   color: var(--text-strong);
   font-size: 0.875rem;
-}
-
-.badge-normal {
-  background: var(--border-light);
-  color: var(--text-main);
-  font-weight: 500;
 }
 
 .badge-warning {

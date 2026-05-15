@@ -9,6 +9,8 @@ frontend/dist/
 
 backend/target/
 backend/.m2/
+backend/.m2repo/
+backend/data/
 *.log
 
 .env

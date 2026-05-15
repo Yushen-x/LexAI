@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -41,21 +42,27 @@ public class GlobalExceptionHandler {
         }
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure("参数校验未通过", errors));
+                .body(ApiResponse.failure("请求参数校验未通过", errors));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnreadableJson(HttpMessageNotReadableException exception) {
-        log.warn("请求体解析失败: {}", exception.getMostSpecificCause().getMessage());
+        log.warn("Request body parse failed: {}", exception.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure("请求数据格式不正确，请检查 JSON 与字段类型。", null));
+                .body(ApiResponse.failure("请求体格式不正确", null));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        log.warn("Request parameter type mismatch: name={} value={}", exception.getName(), exception.getValue());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.failure("请求参数格式不正确", null));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception exception) {
-        log.error("未处理的服务器异常", exception);
+        log.error("Unhandled server exception", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.failure("服务暂时不可用，请稍后重试。", null));
+                .body(ApiResponse.failure("服务暂时不可用", null));
     }
 }
-

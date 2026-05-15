@@ -81,22 +81,46 @@ public class DeliCaseSearchClient {
     private List<String> extractCaseItems(String body, int limit) {
         try {
             JsonNode root = objectMapper.readTree(body);
-            List<JsonNode> items = flattenArrayCandidates(root);
+            // 得理 queryListCase 返回结构：{ success, code, body: { data: [ ... ] } }
+            JsonNode dataNode = root.path("body").path("data");
+            List<JsonNode> items = new ArrayList<>();
+            if (dataNode.isArray()) {
+                dataNode.forEach(items::add);
+            } else {
+                items = flattenArrayCandidates(root);
+            }
             if (items.isEmpty()) return List.of();
 
             Set<String> dedup = new LinkedHashSet<>();
             for (JsonNode n : items) {
-                String caseNo = firstText(n, "caseNo", "caseNumber", "案号", "id");
-                String gist = firstText(n, "gist", "judgementGist", "summary", "要旨");
-                String result = firstText(n, "judgementResult", "decision", "result", "判决结果");
-                String line = joinNonBlank(caseNo, gist, result);
-                if (!line.isBlank()) dedup.add(line);
+                String title = stripHtml(firstText(n, "title", "caseName", "案名"));
+                String caseNo = firstText(n, "caseNo", "caseNumber", "案号");
+                String content = stripHtml(firstText(n,
+                        "gist", "judgementGist", "summary", "content", "要旨"));
+
+                String head = joinNonBlank(title, caseNo);
+                String line = joinNonBlank(head, content);
+                if (!line.isBlank()) {
+                    dedup.add(truncate(line, 220));
+                }
                 if (dedup.size() >= limit) break;
             }
             return new ArrayList<>(dedup);
         } catch (Exception ignore) {
             return List.of();
         }
+    }
+
+    private static String stripHtml(String s) {
+        if (s == null) return "";
+        return s.replaceAll("<[^>]+>", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max) + "…";
     }
 
     private static String joinNonBlank(String... parts) {

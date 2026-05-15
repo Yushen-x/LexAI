@@ -12,8 +12,10 @@ public record ContractResponse(
         String partyA,
         String partyB,
         BigDecimal amount,
+        String content,
         ContractStatus status,
         String source,
+        ContractLatestReview latestReview,
         Instant createdAt,
         Instant updatedAt
 ) {

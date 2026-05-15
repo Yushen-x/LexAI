@@ -1,0 +1,362 @@
+{
+  "project": {
+    "title": "LLM-Based Dynamic Black-Box Testing for LexAI REST APIs",
+    "system_name": "LexAI",
+    "input_mode": "requirements_and_api_contracts",
+    "techniques": [
+      "Equivalence Partitioning",
+      "Boundary Value Analysis",
+      "Decision Table Testing"
+    ]
+  },
+  "model_artifact": {
+    "model": "GPT-5",
+    "prompt_file": "assignment1-blackbox/tool/prompt_template.md"
+  },
+  "common_rules": [
+    {
+      "id": "R-COMMON-01",
+      "text": "Success returns ApiResponse with code SUCCESS and message ok.",
+      "expected_http_status": 200
+    },
+    {
+      "id": "R-COMMON-02",
+      "text": "Bean validation failures return 400 with code FAILED and field-level errors.",
+      "expected_http_status": 400
+    },
+    {
+      "id": "R-COMMON-03",
+      "text": "Malformed JSON or invalid enum/type values return 400 with code FAILED.",
+      "expected_http_status": 400
+    },
+    {
+      "id": "R-COMMON-04",
+      "text": "Missing resources return 404 with code FAILED.",
+      "expected_http_status": 404
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "CT_LIST",
+      "method": "GET",
+      "path": "/api/contracts",
+      "name": "List contracts",
+      "request": {
+        "query": [
+          {
+            "name": "keyword",
+            "type": "string",
+            "required": false,
+            "sample_valid": "lease"
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "required": false,
+            "values": [
+              "DRAFT",
+              "UNDER_REVIEW",
+              "SIGNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "TERMINATED"
+            ]
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "required": false,
+            "sample_valid": "Service Contract"
+          },
+          {
+            "name": "page",
+            "type": "integer",
+            "required": false,
+            "default": 0,
+            "min_effective": 0,
+            "sample_valid": 0
+          },
+          {
+            "name": "size",
+            "type": "integer",
+            "required": false,
+            "default": 20,
+            "min_effective": 1,
+            "max_effective": 100,
+            "sample_valid": 20
+          }
+        ]
+      },
+      "behavior_rules": [
+        "Negative page values are clamped to 0.",
+        "Size values below 1 are clamped to 1.",
+        "Size values above 100 are clamped to 100."
+      ]
+    },
+    {
+      "id": "CT_CREATE",
+      "method": "POST",
+      "path": "/api/contracts",
+      "name": "Create contract",
+      "request": {
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Campus Service Agreement"
+          },
+          {
+            "name": "contractType",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Service Contract"
+          },
+          {
+            "name": "partyA",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "LexAI Lab"
+          },
+          {
+            "name": "partyB",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Campus Vendor"
+          },
+          {
+            "name": "amount",
+            "type": "decimal",
+            "required": false,
+            "default": 0,
+            "sample_valid": 12500.0
+          },
+          {
+            "name": "source",
+            "type": "string",
+            "required": false,
+            "default": "workspace input",
+            "sample_valid": "manual import"
+          },
+          {
+            "name": "status",
+            "type": "enum",
+            "required": false,
+            "default": "DRAFT",
+            "values": [
+              "DRAFT",
+              "UNDER_REVIEW",
+              "SIGNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "TERMINATED"
+            ]
+          }
+        ]
+      },
+      "behavior_rules": [
+        "Omitted amount defaults to 0.",
+        "Omitted status defaults to DRAFT.",
+        "Missing or blank source defaults to a server-side label."
+      ]
+    },
+    {
+      "id": "CT_STATUS",
+      "method": "PUT",
+      "path": "/api/contracts/{id}/status",
+      "name": "Update contract status",
+      "request": {
+        "path_params": [
+          {
+            "name": "id",
+            "type": "integer",
+            "required": true,
+            "sample_valid": 1,
+            "sample_missing_resource": 999999
+          }
+        ],
+        "body": [
+          {
+            "name": "status",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "DRAFT",
+              "UNDER_REVIEW",
+              "SIGNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "TERMINATED"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "TS_LIST",
+      "method": "GET",
+      "path": "/api/tasks",
+      "name": "List tasks",
+      "request": {
+        "query": [
+          {
+            "name": "status",
+            "type": "enum",
+            "required": false,
+            "values": [
+              "PENDING",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "REJECTED"
+            ]
+          }
+        ]
+      },
+      "behavior_rules": [
+        "Results are ordered by creation time descending.",
+        "Status filter is optional."
+      ]
+    },
+    {
+      "id": "TS_STATUS",
+      "method": "PUT",
+      "path": "/api/tasks/{id}/status",
+      "name": "Update task status",
+      "request": {
+        "path_params": [
+          {
+            "name": "id",
+            "type": "integer",
+            "required": true,
+            "sample_valid": 1,
+            "sample_missing_resource": 999999
+          }
+        ],
+        "body": [
+          {
+            "name": "status",
+            "type": "enum",
+            "required": true,
+            "values": [
+              "PENDING",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "REJECTED"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LEGAL_CONSULTATION",
+      "method": "POST",
+      "path": "/api/legal/consultation",
+      "name": "Legal consultation",
+      "request": {
+        "body": [
+          {
+            "name": "question",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Can an employer terminate a fixed-term contract early?"
+          },
+          {
+            "name": "facts",
+            "type": "list_string",
+            "required": false,
+            "sample_valid": [
+              "The employee has worked for 8 months.",
+              "No written warning was issued."
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LEGAL_REVIEW",
+      "method": "POST",
+      "path": "/api/legal/contract-review",
+      "name": "Contract review",
+      "request": {
+        "body": [
+          {
+            "name": "contractTitle",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Equipment Lease Agreement"
+          },
+          {
+            "name": "contractContent",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Party B shall pay the full annual rent in advance. Party A may terminate without refund at any time."
+          }
+        ]
+      }
+    },
+    {
+      "id": "LEGAL_DRAFT",
+      "method": "POST",
+      "path": "/api/legal/contract-draft",
+      "name": "Contract draft",
+      "request": {
+        "body": [
+          {
+            "name": "contractName",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Software Procurement Contract"
+          },
+          {
+            "name": "contractType",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Procurement Contract"
+          },
+          {
+            "name": "partyA",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "LexAI Co."
+          },
+          {
+            "name": "partyB",
+            "type": "string",
+            "required": true,
+            "non_blank": true,
+            "sample_valid": "Tech Supplier Ltd."
+          },
+          {
+            "name": "amount",
+            "type": "long",
+            "required": false,
+            "positive": true,
+            "sample_valid": 50000
+          },
+          {
+            "name": "duration",
+            "type": "string",
+            "required": false,
+            "sample_valid": "12 months"
+          },
+          {
+            "name": "requirements",
+            "type": "string",
+            "required": false,
+            "sample_valid": "Include delivery milestones, acceptance criteria, warranty, and dispute resolution."
+          }
+        ]
+      }
+    }
+  ]
+}

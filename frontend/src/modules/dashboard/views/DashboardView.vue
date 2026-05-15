@@ -2,32 +2,34 @@
   <div class="page-container fade-in">
     <p v-if="errorBanner" class="error-banner mb-6">{{ errorBanner }}</p>
 
-    <!-- Welcome Banner Section -->
-    <div class="welcome-banner mb-6">
-      <div class="welcome-content">
-        <h2 class="welcome-title">欢迎回来, {{ userName }}</h2>
-        <p class="welcome-subtitle">
-          {{ overview?.positioning || 'LexAI 智慧合同管理系统已准备就绪' }}
-        </p>
-        <div v-if="overview?.projectName" class="user-meta mt-3">
-          <span class="badge badge-primary mr-2">{{ overview.projectName }}</span>
-          <span
-            class="badge"
-            style="background: rgba(255, 255, 255, 0.2); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3)"
-          >
-            工作台
-          </span>
+    <!-- Hero Banner -->
+    <div class="hero-banner mb-6">
+      <div class="hero-bg-grid" aria-hidden="true"></div>
+      <div class="hero-content">
+        <div class="hero-eyebrow">
+          <span class="hero-pill">LexAI · 智慧法律应用</span>
+          <span class="hero-pill subtle">2026 服创大赛 · 腾讯赛道</span>
         </div>
-      </div>
-      <div class="welcome-action">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          style="background: rgba(255, 255, 255, 0.1); color: #fff; border-color: rgba(255, 255, 255, 0.2)"
-          @click="goWorkflow"
-        >
-          查看待办
-        </button>
+        <h1 class="hero-title">
+          {{ userName }}，欢迎回到 <span class="brand-grad">LexAI</span> 工作台
+        </h1>
+        <p class="hero-sub">
+          {{ overview?.positioning || '腾讯混元大模型 × 得理法律开放平台 × 本地知识库 RAG，把"合同 → 审查 → 决策"打成一条链。' }}
+        </p>
+        <div class="hero-tags">
+          <span class="tech-tag">腾讯混元 hunyuan-lite</span>
+          <span class="tech-tag">得理法律 OpenAPI</span>
+          <span class="tech-tag">本地 RAG · TF-IDF 索引</span>
+          <span class="tech-tag">Spring Boot · Vue 3</span>
+        </div>
+        <div class="hero-actions">
+          <button type="button" class="btn btn-primary" @click="goWorkflow">
+            处理待办（{{ pendingTaskCount }}）
+          </button>
+          <button type="button" class="btn btn-secondary" @click="goConsultation">
+            体验法律咨询 AI
+          </button>
+        </div>
       </div>
     </div>
 
@@ -35,7 +37,7 @@
     <div class="stats-grid mb-6">
       <div v-for="(stat, idx) in adminStats" :key="idx" class="stat-card">
         <div class="stat-icon-wrapper" :style="{ backgroundColor: stat.bgColor, color: stat.color }">
-          <span class="stat-icon-text">{{ stat.icon }}</span>
+          <component :is="stat.icon" style="width: 28px; height: 28px; stroke-width: 2px;" />
         </div>
         <div class="stat-info">
           <h4 class="stat-label">{{ stat.title }}</h4>
@@ -51,21 +53,25 @@
             <h3 class="card-title">管理与快捷功能</h3>
           </div>
           <div class="quick-actions-grid pt-4">
-            <button type="button" class="action-btn" @click="goContractList">
-              <div class="icon-box bg-blue">C</div>
+            <button type="button" class="action-btn" @click="goContractList" title="所有合同的总账，从这里进入起草、审查与归档">
+              <div class="icon-box" style="background: #eff6ff; color: #3b82f6;"><IconContract style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">合同台账</span>
+              <span class="action-sub">主数据 · 总入口</span>
             </button>
-            <button type="button" class="action-btn" @click="goWorkflow">
-              <div class="icon-box bg-green">W</div>
-              <span class="action-text">待办任务</span>
+            <button type="button" class="action-btn" @click="goWorkflow" title="集中跟进等待人工确认的合同审查">
+              <div class="icon-box" style="background: #fef3c7; color: #f59e0b;"><IconWorkflow style="width: 26px; height: 26px; opacity: 0.9;" /></div>
+              <span class="action-text">合同审查待办</span>
+              <span class="action-sub">人工拍板 · 闭环</span>
             </button>
-            <button type="button" class="action-btn" @click="goConsultation">
-              <div class="icon-box bg-orange">L</div>
-              <span class="action-text">法律咨询</span>
-            </button>
-            <button type="button" class="action-btn" @click="goContractReview">
-              <div class="icon-box bg-purple">R</div>
+            <button type="button" class="action-btn" @click="goContractReview" title="单份合同的 AI + 人工审查工作页">
+              <div class="icon-box" style="background: #d1fae5; color: #10b981;"><IconReview style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">合同审查</span>
+              <span class="action-sub">AI 风险 · 决策</span>
+            </button>
+            <button type="button" class="action-btn" @click="goConsultation" title="即问即答的法律咨询 AI 工具，不进入合同流程">
+              <div class="icon-box" style="background: #f3e8ff; color: #8b5cf6;"><IconConsultation style="width: 26px; height: 26px; opacity: 0.9;" /></div>
+              <span class="action-text">法律咨询</span>
+              <span class="action-sub">AI 工具 · 即用</span>
             </button>
           </div>
         </div>
@@ -91,7 +97,10 @@
       <div class="right-col gap-6 flex-col flex">
         <div class="card">
           <div class="card-header pb-4 border-b flex justify-between items-center">
-            <h3 class="card-title">待办任务</h3>
+            <div>
+              <h3 class="card-title">合同审查待办</h3>
+              <p class="text-xs text-muted m-0 mt-1">等待人工确认的合同审查清单（处理后会自动同步台账）</p>
+            </div>
             <button
               type="button"
               class="text-primary text-sm cursor-pointer hover-underline btn-linkish"
@@ -126,8 +135,8 @@
               暂无近期任务记录
             </div>
             <div v-for="(activity, index) in recentActivities" :key="index" class="activity-item">
-              <div class="activity-icon" :style="{ backgroundColor: activity.color }">
-                {{ activity.icon }}
+              <div class="activity-icon" :style="{ backgroundColor: activity.bgColor, color: activity.color }">
+                <component :is="activity.icon" style="width: 18px; height: 18px;" />
               </div>
               <div class="activity-content">
                 <div class="activity-text">{{ activity.text }}</div>
@@ -144,6 +153,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { 
+  Files as IconContract, 
+  ListTodo as IconWorkflow, 
+  Layers as IconCapability, 
+  History as IconHistory,
+  MessageSquare as IconConsultation,
+  BarChart2 as IconAnalysis,
+  FileSearch as IconReview,
+  FileEdit as IconDraft
+} from 'lucide-vue-next';
 import { fetchContracts } from '@/shared/api/contracts';
 import { fetchHealth, fetchOverview } from '@/shared/api/legal';
 import { fetchTasks } from '@/shared/api/tasks';
@@ -211,30 +230,30 @@ const adminStats = computed(() => [
   {
     title: '合同总数',
     value: formatInt(contractTotal.value),
-    icon: 'C',
-    color: '#dc2626',
-    bgColor: '#fee2e2',
+    icon: IconContract,
+    color: '#3b82f6',
+    bgColor: '#eff6ff',
   },
   {
     title: '待处理任务',
     value: formatInt(pendingTaskCount.value),
-    icon: 'W',
-    color: '#2563eb',
-    bgColor: '#eff6ff',
+    icon: IconWorkflow,
+    color: '#f59e0b',
+    bgColor: '#fef3c7',
   },
   {
     title: '能力模块',
     value: formatInt(capabilityCount.value),
-    icon: 'K',
-    color: '#ca8a04',
-    bgColor: '#fef08a',
+    icon: IconCapability,
+    color: '#8b5cf6',
+    bgColor: '#f3e8ff',
   },
   {
     title: '任务记录',
     value: formatInt(allTaskCount.value),
-    icon: 'T',
-    color: '#16a34a',
-    bgColor: '#dcfce7',
+    icon: IconHistory,
+    color: '#10b981',
+    bgColor: '#d1fae5',
   },
 ]);
 
@@ -250,22 +269,28 @@ const systemStatus = computed(() => [
     badgeClass: healthUp.value ? 'badge-success' : 'badge-danger',
   },
   {
-    name: '平台概览',
-    value: overview.value ? '已加载' : '—',
-    color: overview.value ? '#16a34a' : '#94a3b8',
-    badgeClass: overview.value ? 'badge-success' : 'badge-warning',
-  },
-  {
-    name: '数据存储',
-    value: 'H2 演示库',
+    name: '腾讯混元大模型',
+    value: 'hunyuan-lite · 已接入',
     color: '#16a34a',
     badgeClass: 'badge-success',
   },
   {
-    name: 'AI 推理',
-    value: 'Mock 网关',
-    color: '#ca8a04',
-    badgeClass: 'badge-warning',
+    name: '得理法律开放平台',
+    value: '法规 + 类案 双通路',
+    color: '#16a34a',
+    badgeClass: 'badge-success',
+  },
+  {
+    name: '本地知识库 RAG',
+    value: '8 份文档 · TF-IDF 索引',
+    color: '#16a34a',
+    badgeClass: 'badge-success',
+  },
+  {
+    name: '数据存储',
+    value: 'MySQL 持久化',
+    color: '#16a34a',
+    badgeClass: 'badge-success',
   },
 ]);
 
@@ -277,22 +302,23 @@ const recentActivities = computed(() => {
   );
   const top = sorted.slice(0, 5);
   const colorByType: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: '#2563eb',
-    CASE_ANALYSIS: '#16a34a',
-    CONTRACT_REVIEW: '#ca8a04',
-    CONTRACT_DRAFT: '#a855f7',
+    LEGAL_CONSULTATION: '#3b82f6',
+    CASE_ANALYSIS: '#10b981',
+    CONTRACT_REVIEW: '#f59e0b',
+    CONTRACT_DRAFT: '#8b5cf6',
   };
-  const iconByType: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: 'L',
-    CASE_ANALYSIS: 'A',
-    CONTRACT_REVIEW: 'R',
-    CONTRACT_DRAFT: 'D',
+  const iconByType: Record<WorkspaceTaskType, any> = {
+    LEGAL_CONSULTATION: IconConsultation,
+    CASE_ANALYSIS: IconAnalysis,
+    CONTRACT_REVIEW: IconReview,
+    CONTRACT_DRAFT: IconDraft,
   };
   return top.map((t) => ({
     text: `${typeLabel(t.type)}：${t.title}`,
     time: formatRelative(t.createdAt),
-    icon: iconByType[t.type] ?? '·',
-    color: colorByType[t.type] ?? '#64748b',
+    icon: iconByType[t.type] || IconHistory,
+    color: colorByType[t.type] || '#64748b',
+    bgColor: (colorByType[t.type] || '#64748b') + '15',
   }));
 });
 
@@ -464,29 +490,127 @@ onMounted(() => {
   text-decoration: underline;
 }
 
-.welcome-banner {
-  background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  color: white;
+/* Hero Banner */
+.hero-banner {
+  position: relative;
+  border-radius: 18px;
+  padding: 2rem 2.25rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #6d28d9 100%);
+  color: #fff;
+  box-shadow: 0 16px 36px rgba(76, 29, 149, 0.25);
+}
+
+.hero-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06), transparent 45%),
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: auto, auto, 40px 40px, 40px 40px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 920px;
+}
+
+.hero-eyebrow {
   display: flex;
-  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.hero-pill {
+  display: inline-flex;
   align-items: center;
-  box-shadow: var(--shadow-md);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
 }
 
-.welcome-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
-  color: white;
-}
-
-.welcome-subtitle {
-  margin: 0;
+.hero-pill.subtle {
+  background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.85);
-  font-size: 1rem;
-  max-width: 42rem;
-  line-height: 1.5;
+}
+
+.hero-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.brand-grad {
+  background: linear-gradient(90deg, #fbbf24, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 800;
+}
+
+.hero-sub {
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+}
+
+.hero-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.tech-tag {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.72rem;
+  color: #e0e7ff;
+  font-weight: 500;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.hero-actions .btn-primary {
+  background: #fff;
+  color: #4c1d95;
+  border: none;
+  font-weight: 700;
+}
+.hero-actions .btn-primary:hover {
+  background: #faf5ff;
+  transform: translateY(-1px);
+}
+
+.hero-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.hero-actions .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .stats-grid {
@@ -610,6 +734,14 @@ onMounted(() => {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-main);
+}
+
+.action-sub {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
 .status-list {

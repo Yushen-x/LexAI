@@ -62,14 +62,28 @@
       </div>
 
       <!-- Result Section -->
-      <div class="card result-card" :class="{ 'bg-soft': !result }">
+      <div class="card result-card" :class="{ 'bg-soft': !result && !loading }">
+        <AiThinkingPanel
+          v-if="loading"
+          subtitle="腾讯混元 hunyuan-lite + 得理法律开放平台 + 本地知识库 RAG"
+          :steps="[
+            '解析咨询问题与补充事实',
+            '调用得理法律法规 / 类案 API',
+            '本地知识库 TF-IDF 召回',
+            '混元大模型综合推理',
+            '结构化输出（领域 / 依据 / 建议 / 风险）'
+          ]"
+        />
         <div v-if="result" class="result-content fade-in">
           <div class="card-header border-b pb-4 mb-6">
             <div>
               <h3 class="card-title">专业分析报告</h3>
               <p class="text-muted text-sm mt-1">识别领域：<strong style="color:var(--primary);">{{ result.category }}</strong></p>
             </div>
-            <span class="badge badge-primary">已生成</span>
+            <div class="flex gap-2 items-center">
+              <ConfidenceBadge :value="result.confidence" />
+              <span class="badge badge-primary">已生成</span>
+            </div>
           </div>
 
           <!-- Summary Metric Row -->
@@ -85,6 +99,13 @@
             <div class="metric-item">
               <div class="metric-label">风险点提示</div>
               <div class="metric-value text-danger">{{ result.riskAlerts.length }}<span class="metric-unit">个</span></div>
+            </div>
+          </div>
+
+          <div v-if="result.answer" class="answer-card mb-6">
+            <div class="answer-card-title">AI 主回答</div>
+            <div class="answer-card-body">
+              <CitedText :text="result.answer" :context="result.retrievalContext" @cite-click="onCiteClick" />
             </div>
           </div>
 
@@ -108,7 +129,9 @@
                     <span class="basis-law">{{ item.law }}</span>
                     <span v-if="item.article" class="basis-article">{{ item.article }}</span>
                   </div>
-                  <div class="basis-content text-muted text-sm">{{ item.content }}</div>
+                  <div class="basis-content text-muted text-sm">
+                    <CitedText :text="item.content" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -116,14 +139,18 @@
             <div class="result-box">
               <h4 class="result-box-title text-success">建议路径</h4>
               <ul class="clean-list">
-                <li v-for="item in result.recommendations" :key="item">{{ item }}</li>
+                <li v-for="item in result.recommendations" :key="item">
+                  <CitedText :text="item" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                </li>
               </ul>
             </div>
 
             <div class="result-box box-danger">
               <h4 class="result-box-title text-danger">风险提示</h4>
               <ul class="clean-list">
-                <li v-for="item in result.riskAlerts" :key="item">{{ item }}</li>
+                <li v-for="item in result.riskAlerts" :key="item">
+                  <CitedText :text="item" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                </li>
               </ul>
             </div>
 
@@ -134,9 +161,44 @@
               </ul>
             </div>
           </div>
+
+          <AiTracePanel
+            class="mt-6"
+            :laws="result.retrievalContext?.laws ?? []"
+            :cases="result.retrievalContext?.cases ?? []"
+            :knowledge="result.retrievalContext?.knowledge ?? []"
+            :input-desc="form.question.slice(0, 40) + (form.question.length > 40 ? '…' : '')"
+          />
+
+          <div v-if="hasAnyRetrieval" class="mt-6">
+            <h4 class="result-box-title text-primary">检索原文（用于复核 · 点击 [L#][C#][K#] 标签可定位）</h4>
+            <div class="rag-grid mt-3">
+              <RagSourceList
+                kind="law"
+                chip-prefix="L"
+                title-prefix="得理 · 法律法规"
+                :items="result.retrievalContext?.laws ?? []"
+                :highlighted-index="highlightLawIdx"
+              />
+              <RagSourceList
+                kind="case"
+                chip-prefix="C"
+                title-prefix="得理 · 类案检索"
+                :items="result.retrievalContext?.cases ?? []"
+                :highlighted-index="highlightCaseIdx"
+              />
+              <RagSourceList
+                kind="kb"
+                chip-prefix="K"
+                title-prefix="本地 RAG 知识库"
+                :items="result.retrievalContext?.knowledge ?? []"
+                :highlighted-index="highlightKbIdx"
+              />
+            </div>
+          </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-else-if="!loading" class="empty-state">
           <div class="empty-icon">AI</div>
           <h3 class="empty-title">等待咨询输入</h3>
           <p class="empty-desc text-muted">在左侧输入您遇到的法律问题与相关事实，LexAI 智能体将为您生成专业的法律推演方案与操作建议。</p>
@@ -151,6 +213,11 @@ import { computed, reactive, ref } from 'vue';
 import { submitConsultation } from '@/shared/api/legal';
 import type { ConsultationResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
+import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
+import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
+import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
+import CitedText from '@/shared/ui/CitedText.vue';
+import RagSourceList from '@/shared/ui/RagSourceList.vue';
 
 const form = reactive({
   question: '',
@@ -223,6 +290,22 @@ const structuredLegalBasis = computed(() => {
   return items.map(parseLegalBasis);
 });
 
+const hasAnyRetrieval = computed(() => {
+  const r = result.value?.retrievalContext;
+  if (!r) return false;
+  return (r.laws?.length ?? 0) + (r.cases?.length ?? 0) + (r.knowledge?.length ?? 0) > 0;
+});
+
+const highlightLawIdx = ref<number | null>(null);
+const highlightCaseIdx = ref<number | null>(null);
+const highlightKbIdx = ref<number | null>(null);
+
+function onCiteClick(seg: { kind: string; index: number }) {
+  if (seg.kind === 'law') highlightLawIdx.value = seg.index - 1;
+  else if (seg.kind === 'case') highlightCaseIdx.value = seg.index - 1;
+  else if (seg.kind === 'kb') highlightKbIdx.value = seg.index - 1;
+}
+
 function applyPreset(preset: { question: string; facts: string[] }) {
   form.question = preset.question;
   factsInput.value = preset.facts.join('，');
@@ -242,6 +325,7 @@ async function copyLegalBasis() {
 }
 
 async function handleSubmit() {
+  result.value = null;
   loading.value = true;
   form.facts = normalizedFacts.value;
 
@@ -250,6 +334,10 @@ async function handleSubmit() {
       question: form.question,
       facts: form.facts
     });
+  } catch (error) {
+    console.error('提交法律咨询失败:', error);
+    result.value = null;
+    toast('法律咨询失败，请稍后重试', 'error');
   } finally {
     loading.value = false;
   }
@@ -271,6 +359,7 @@ function resetForm() {
 
 .mb-6 { margin-bottom: 1.5rem; }
 .mt-6 { margin-top: 1.5rem; }
+.mt-3 { margin-top: 0.75rem; }
 .mr-2 { margin-right: 0.5rem; }
 .pb-4 { padding-bottom: 1rem; }
 .mb-4 { margin-bottom: 1rem; }
@@ -347,9 +436,51 @@ function resetForm() {
 
 .grid-layout {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 1.5rem;
   align-items: start;
+}
+.grid-layout > * { min-width: 0; }
+
+@media (min-width: 1024px) {
+  .input-card {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+.result-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.answer-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+.answer-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #4338ca;
+  margin-bottom: 0.4rem;
+}
+.answer-card-body {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #1e293b;
+  word-break: break-word;
+}
+.result-card :deep(pre),
+.result-card :deep(code) {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .card-header {
@@ -403,9 +534,10 @@ function resetForm() {
 
 .result-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
 }
+.result-grid > * { min-width: 0; }
 
 .result-box {
   background-color: var(--bg-app);
@@ -534,8 +666,23 @@ function resetForm() {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.rag-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+.rag-grid > * {
+  min-width: 0;
+}
+.rag-grid > :deep(.rag-list:nth-child(3)) {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 1024px) {
   .grid-layout {
+    grid-template-columns: 1fr;
+  }
+  .rag-grid {
     grid-template-columns: 1fr;
   }
 }

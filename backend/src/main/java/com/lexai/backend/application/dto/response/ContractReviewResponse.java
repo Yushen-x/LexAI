@@ -5,7 +5,8 @@ import java.util.List;
 public record ContractReviewResponse(
         List<ContractRiskItem> risks,
         List<String> missingClauses,
-        String summary
+        String summary,
+        Double confidence,
+        RetrievalContext retrievalContext
 ) {
 }
-

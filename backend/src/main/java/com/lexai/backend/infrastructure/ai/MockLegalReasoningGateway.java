@@ -9,14 +9,16 @@ import com.lexai.backend.application.dto.response.ConsultationResponse;
 import com.lexai.backend.application.dto.response.ContractDraftResponse;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.ContractRiskItem;
+import com.lexai.backend.application.dto.response.RetrievalContext;
 import com.lexai.backend.application.port.out.LegalReasoningGateway;
 import com.lexai.backend.domain.model.RiskLevel;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import org.springframework.stereotype.Component;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnProperty(name = "lexai.ai.mode", havingValue = "mock", matchIfMissing = true)
@@ -26,47 +28,58 @@ public class MockLegalReasoningGateway implements LegalReasoningGateway {
     public ConsultationResponse consult(ConsultationRequest request) {
         String question = request.question().toLowerCase(Locale.ROOT);
         String category = inferConsultationCategory(question);
-
         return new ConsultationResponse(
                 category,
                 List.of(
-                        "建议结合对应法律法规、司法解释及事实证据进行综合判断",
-                        "可进一步接入法律知识库输出更精确的条文依据"
+                        "建议结合《中华人民共和国民法典》与相关司法解释核验事实与权利义务",
+                        "对于高风险争议，需结合证据链、时效和程序规则综合判断"
                 ),
                 List.of(
-                        "先补充关键信息并固定证据",
-                        "根据争议类型选择协商、投诉、仲裁或诉讼路径",
-                        "必要时提交给人工律师复核"
+                        "先固定关键证据，再明确争议焦点与诉求",
+                        "优先尝试协商或函告，再决定是否进入仲裁或诉讼",
+                        "涉及金额较大或主体复杂时建议人工律师复核"
                 ),
                 List.of(
                         "当前结果为 AI 辅助分析，不替代正式法律意见",
-                        "若涉及金额较大或时效风险，建议尽快人工介入"
-                )
+                        "若存在时效、管辖或证据瑕疵，应尽快补强材料"
+                ),
+                0.6,
+                new RetrievalContext(
+                        List.of("《中华人民共和国民法典》相关条款", "《中华人民共和国劳动合同法》争议处理条款"),
+                        List.of("最高人民法院相关类案裁判要旨（示例）"),
+                        List.of("LexAI 内置知识库命中：争议处理与证据固定流程")
+                ),
+                "（Mock 模式回答）你的问题归类为「" + category + "」。建议先固定证据并明确诉求，再结合下方法律依据与风险提示决定是否进入仲裁/诉讼。"
         );
     }
 
     @Override
     public CaseAnalysisResponse analyzeCase(CaseAnalysisRequest request) {
         List<String> evidencePoints = request.evidencePoints() == null ? List.of() : request.evidencePoints();
-
         return new CaseAnalysisResponse(
                 List.of(
-                        "已识别案件核心叙事与主要争议背景",
-                        "可提取双方主体关系、履约过程与争议节点",
-                        "当前输入长度适合进入争议焦点细分阶段"
+                        "已识别案件主体关系、履约经过与争议背景",
+                        "当前输入已具备继续拆解争议焦点的基础",
+                        "建议围绕时间线与责任边界继续细化事实"
                 ),
                 List.of(
-                        "责任承担边界是否明确",
-                        "现有证据是否足以支撑核心主张",
-                        "是否存在先履行抗辩、违约抗辩或程序性争议"
+                        "现有证据是否足以支持核心主张",
+                        "是否存在违约抗辩、先履行抗辩或程序性争议",
+                        "损失范围与因果关系能否被有效证明"
                 ),
                 evidencePoints.isEmpty()
-                        ? List.of("尚未录入具体证据，建议补充合同、聊天记录、付款凭证等")
-                        : List.of("建议核验时间线完整性", "建议补充能直接证明违约或损失的关键证据"),
+                        ? List.of("尚未录入具体证据，建议补充合同、聊天记录、付款凭证等材料")
+                        : List.of("建议补强能直接证明违约或损失的核心证据", "建议核验时间线完整性与证据来源一致性"),
                 List.of(
-                        "整理时间线并建立证据目录",
-                        "围绕争议焦点逐项匹配证据材料",
-                        "形成诉讼或谈判版本的事实摘要"
+                        "整理案件时间线并建立证据目录",
+                        "按争议焦点逐项匹配证据与法律依据",
+                        "形成适合谈判、仲裁或诉讼的事实摘要版本"
+                ),
+                0.6,
+                new RetrievalContext(
+                        List.of(),
+                        List.of("合同违约责任裁判类案（示例）", "劳动关系认定裁判类案（示例）"),
+                        List.of("LexAI 证据审查知识片段：时间线与证据链补强")
                 )
         );
     }
@@ -77,137 +90,122 @@ public class MockLegalReasoningGateway implements LegalReasoningGateway {
         List<ContractRiskItem> risks = new ArrayList<>();
         List<String> missingClauses = new ArrayList<>();
 
-        if (!content.contains("违约")) {
-            missingClauses.add("违约责任条款");
-        }
-        if (!content.contains("保密")) {
-            missingClauses.add("保密条款");
-        }
-        if (!content.contains("解除")) {
-            missingClauses.add("解除与终止条款");
-        }
-        if (!content.contains("争议解决")) {
-            missingClauses.add("争议解决条款");
-        }
+        if (!content.contains("违约")) missingClauses.add("违约责任条款");
+        if (!content.contains("保密")) missingClauses.add("保密条款");
+        if (!content.contains("解除")) missingClauses.add("解除与终止条款");
+        if (!content.contains("争议解决")) missingClauses.add("争议解决条款");
 
-        if (content.contains("单方解释权归甲方所有")) {
+        if (content.contains("单方解释权")) {
             risks.add(new ContractRiskItem(
                     RiskLevel.HIGH,
                     "单方解释权条款",
-                    "条款存在明显失衡，可能引发显失公平或无效风险",
-                    "删除单方绝对解释权表述，改为双方协商解释或按法律规定处理"
+                    "条款失衡，存在显失公平或无效风险",
+                    "建议删除单方绝对解释权表述，改为双方协商解释或依法处理"
             ));
         }
-
         if (!content.contains("付款")) {
             risks.add(new ContractRiskItem(
                     RiskLevel.MEDIUM,
                     "付款安排",
-                    "缺少付款节点、金额及逾期处理机制，履约争议风险较高",
-                    "补充付款条件、付款期限、发票规则及逾期责任"
+                    "缺少付款节点、金额和逾期处理机制，履约争议风险较高",
+                    "建议补充付款条件、付款期限、发票规则及逾期责任"
             ));
         }
-
         if (!content.contains("交付") && !content.contains("验收")) {
             risks.add(new ContractRiskItem(
                     RiskLevel.MEDIUM,
                     "交付与验收",
-                    "缺少交付标准与验收机制，难以界定履约完成节点",
-                    "补充交付物清单、验收标准、验收时间与异议处理规则"
+                    "缺少交付标准和验收机制，不利于界定履约完成时点",
+                    "建议补充交付清单、验收标准、验收时间与异议处理规则"
             ));
         }
-
         if (risks.isEmpty()) {
             risks.add(new ContractRiskItem(
                     RiskLevel.LOW,
                     "整体结构",
-                    "暂未发现显著高风险条款，但仍建议结合业务事实进行人工复核",
-                    "继续补充主体信息、违约责任和争议解决细节"
+                    "未发现显著高风险条款，但仍建议结合业务事实人工复核",
+                    "建议继续核验主体信息、违约责任和争议解决条款"
             ));
         }
 
         return new ContractReviewResponse(
                 risks,
                 missingClauses,
-                "当前审查结果基于规则化 Mock 引擎，后续可升级为腾讯 AI + 法律知识库 + 风险评分模型。"
+                "当前审查结果基于 Mock 审查引擎生成，可用于演示合同风险识别与缺失条款提示。",
+                0.6,
+                new RetrievalContext(
+                        List.of("《中华人民共和国民法典》合同编格式条款与违约责任条款"),
+                        List.of(),
+                        List.of("LexAI 合同风险知识库命中：付款、验收、争议解决、保密")
+                )
         );
     }
 
     @Override
     public ContractDraftResponse draftContract(ContractDraftRequest request) {
-        StringBuilder content = new StringBuilder();
-        content.append(request.contractName()).append("\n\n");
-        content.append("本合同由以下各方于")
-                .append(java.time.LocalDate.now())
-                .append("签订：\n\n");
+        String requirements = request.requirements() == null || request.requirements().isBlank()
+                ? "详见双方后续确认的业务清单。"
+                : request.requirements().trim();
+        String duration = request.duration() == null || request.duration().isBlank()
+                ? "自签署之日起 12 个月"
+                : request.duration().trim();
 
-        content.append("甲方（服务提供商）：").append(request.partyA()).append("\n");
-        content.append("乙方（服务接收方）：").append(request.partyB()).append("\n\n");
+        String content = """
+                %s
 
-        content.append("鉴于：\n");
-        content.append("甲方同意为乙方提供相关服务，乙方同意支付相应费用。双方在平等、自愿、协商一致的基础上，达成如下协议：\n\n");
+                甲方：%s
+                乙方：%s
 
-        content.append("第一条  服务内容与范围\n");
-        content.append("1.1 甲方向乙方提供相关的服务。具体服务内容为：")
-                .append(request.requirements() != null ? request.requirements() : "详见双方另行商定的明细表")
-                .append("\n");
-        content.append("1.2 甲方承诺按照约定的时间、质量标准完成上述服务。\n\n");
+                第一条 合同目的
+                双方基于平等、自愿、诚实信用原则，就%s相关事项达成一致。
 
-        content.append("第二条  服务期限\n");
-        content.append("2.1 合同服务期限为：").append(request.duration() != null ? request.duration() : "自签订之日起12个月")
-                .append("\n");
-        content.append("2.2 合同签订之日为实际签署之日，自双方代表签仪式立即生效。\n\n");
+                第二条 服务/合作内容
+                1. 乙方按照甲方需求提供约定服务或交付成果。
+                2. 核心需求如下：
+                %s
 
-        content.append("第三条  费用与支付\n");
-        content.append("3.1 乙方应向甲方支付费用总额为：¥").append(request.amount()).append("元（大写：")
-                .append(convertToChineseCurrency(request.amount())).append("元整）\n");
-        content.append("3.2 乙方应在以下时间节点完成付款：\n");
-        content.append("  - 签订合同时：支付总费用的30%，计¥").append(request.amount() * 30 / 100).append("元\n");
-        content.append("  - 服务交付完成时：支付剩余70%，计¥").append(request.amount() * 70 / 100).append("元\n");
-        content.append("3.3 付款方式：银行转账至甲方指定账户\n");
-        content.append("3.4 如乙方逾期支付，应按日利率0.05‰支付逾期利息\n\n");
+                第三条 合同金额与支付
+                1. 合同总金额为人民币 %d 元。
+                2. 支付节点、发票要求与逾期责任由双方按本合同附件执行。
 
-        content.append("第四条  双方权利与义务\n");
-        content.append("4.1 甲方的权利与义务：\n");
-        content.append("  (1) 有权审查乙方提供的资料完整性\n");
-        content.append("  (2) 有义务严格履行合同义务，确保服务质量\n");
-        content.append("  (3) 有义务按时完成服务工作\n\n");
-        content.append("4.2 乙方的权利与义务：\n");
-        content.append("  (1) 有权对甲方的服务质量进行监督\n");
-        content.append("  (2) 有义务按时支付相应费用\n");
-        content.append("  (3) 有义务提供必要的协作信息和资源\n\n");
+                第四条 履行期限
+                合同履行期限为：%s。
 
-        content.append("第五条  保密条款\n");
-        content.append("5.1 双方对在履行本合同过程中获知的商业秘密承诺保密\n");
-        content.append("5.2 保密义务在本合同终止后继续有效，期限为5年\n");
-        content.append("5.3 因不可抗力或法律强制要求披露除外\n\n");
+                第五条 保密条款
+                双方对履约过程中知悉的商业信息负有保密义务，未经对方书面同意不得向第三方披露。
 
-        content.append("第六条  违约责任\n");
-        content.append("6.1 甲方逾期完成服务，每逾期一天按合同总价的0.1%支付违约金，逾期超30天乙方有权单方解除合同\n");
-        content.append("6.2 乙方逾期支付费用，每逾期一天按未付金额的0.1%支付违约金\n");
-        content.append("6.3 任何一方因违反合同条款给对方造成损失的，应赔偿对方的实际损失\n\n");
+                第六条 违约责任
+                任一方违反合同义务造成对方损失的，应承担相应违约责任并赔偿实际损失。
 
-        content.append("第七条  争议解决\n");
-        content.append("7.1 本合同的履行、解释和争议解决均受中华人民共和国法律管辖\n");
-        content.append("7.2 双方发生争议时，首先应进行友好协商解决\n");
-        content.append("7.3 协商不成的，双方同意提交至合同签订地人民法院诉讼解决\n\n");
+                第七条 争议解决
+                因本合同引起的争议，双方应先协商解决；协商不成的，提交有管辖权的人民法院处理。
 
-        content.append("第八条  其他条款\n");
-        content.append("8.1 本合同一式两份，甲乙双方各持一份，具有同等法律效力\n");
-        content.append("8.2 未经双方书面协议，本合同不得以任何方式修改或变更\n");
-        content.append("8.3 本合同条款如有违反法律规定，该条款无效，但不影响其他条款的效力\n\n");
+                第八条 其他
+                本合同自双方签字盖章之日起生效。
 
-        content.append("甲方（服务提供商）：_____________　　　　乙方（服务接收方）：_____________\n");
-        content.append("签署日期：_____________　　　　　　　　　签署日期：_____________\n");
-
-        String summary = "已生成包含服务内容、费用安排、权利义务、违约责任、争议解决等完整条款的合同草稿。"
-                + "建议甲方=\"" + request.partyA() + "\"和乙方=\"" + request.partyB() + "\"进行人工复核，"
-                + "结合实际业务情况补充或修改相关条款。";
+                签署日期：%s
+                """.formatted(
+                request.contractName(),
+                request.partyA(),
+                request.partyB(),
+                request.contractType(),
+                requirements,
+                request.amount(),
+                duration,
+                LocalDate.now()
+        );
 
         return new ContractDraftResponse(
-                content.toString(),
-                summary,
-                LocalDateTime.now()
+                request.contractName(),
+                content,
+                "已生成包含金额、期限、保密、违约责任和争议解决条款的合同草稿，请结合实际业务继续补充细节。",
+                LocalDateTime.now(),
+                0.6,
+                new RetrievalContext(
+                        List.of("《中华人民共和国民法典》合同编通则相关条款"),
+                        List.of(),
+                        List.of("LexAI 合同模板知识库（Mock）")
+                )
         );
     }
 
@@ -226,17 +224,4 @@ public class MockLegalReasoningGateway implements LegalReasoningGateway {
         }
         return "综合法律咨询";
     }
-
-    private String convertToChineseCurrency(Long amount) {
-        // Simple conversion for demo purposes
-        if (amount >= 100000000) {
-            return (amount / 100000000) + "亿";
-        } else if (amount >= 10000) {
-            return (amount / 10000) + "万";
-        } else if (amount >= 1000) {
-            return (amount / 1000) + "千";
-        }
-        return amount.toString();
-    }
 }
-

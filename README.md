@@ -25,7 +25,7 @@ cd backend
 mvn spring-boot:run
 ```
 
-启动后默认地址：`http://localhost:8080/api`
+启动后默认地址：`http://localhost:8081/api`
 
 **要调用得理 / 腾讯真实接口（避免只走兜底）**：请按 **[docs/后端本地启动与API环境配置.md](docs/后端本地启动与API环境配置.md)** 从零步到九步操作；密钥只在本地 `backend/.env` 填写，由你自己或负责人提供，勿提交仓库。
 
@@ -62,6 +62,11 @@ npm run dev
 - `POST /api/legal/consultation`
 - `POST /api/legal/case-analysis`
 - `POST /api/legal/contract-review`
+- `POST /api/legal/contract-draft`
+- `GET/POST /api/contracts` — 合同台账列表与新建
+- `GET/PUT/DELETE /api/contracts/{id}` — 合同详情、状态更新、软删除
+- `GET /api/tasks` — 待办任务列表
+- `PUT /api/tasks/{id}/status` — 更新任务状态
 
 ## 相关文档
 

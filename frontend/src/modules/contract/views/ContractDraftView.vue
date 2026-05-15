@@ -19,8 +19,8 @@
         <button class="btn btn-secondary mr-3" @click="saveDraft" :disabled="isSavingDraft">
           <span class="icon"></span> {{ isSavingDraft ? '保存中...' : '存草稿' }}
         </button>
-        <button class="btn btn-secondary mr-3" @click="submitForReview" :disabled="!contractForm.content.trim()">
-          <span class="icon"></span> 提交审查
+        <button class="btn btn-secondary mr-3" @click="submitForReview" :disabled="!contractForm.content.trim() || isSavingDraft">
+          <span class="icon"></span> {{ isSavingDraft ? '提交中...' : '提交审查' }}
         </button>
         <button class="btn btn-primary" @click="generateContract" :disabled="isGenerating">
           <span class="icon">✨</span> {{ isGenerating ? '生成中...' : '生成合同' }}
@@ -53,11 +53,13 @@
             <div class="form-group">
               <label>合同类型</label>
               <select class="form-input" v-model="contractForm.type">
-                <option value="采购合同">标准采购合同</option>
-                <option value="技术服务">技术服务框架协议</option>
-                <option value="保密协议">保密协议 (NDA)</option>
-                <option value="劳动合同">劳动合同</option>
-                <option value="租赁合同">租赁合同</option>
+                <option
+                  v-for="option in CONTRACT_TYPE_OPTIONS"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
             </div>
           </div>
@@ -77,12 +79,50 @@
               <span class="text-xs text-muted">支持双向同步与 AI 补写</span>
             </div>
           </div>
-          <div class="doc-body pt-3 flex-1 flex">
-            <textarea 
-              class="doc-textarea font-serif" 
-              v-model="contractForm.content" 
+          <div class="doc-body pt-3 flex-1 flex flex-col">
+            <AiThinkingPanel
+              v-if="isGenerating"
+              class="mb-3"
+              title="AI 起草合同中"
+              subtitle="腾讯混元 + 得理法规 RAG + 本地条款知识库"
+              :steps="[
+                '解析合同元信息与核心需求',
+                '调用得理法规检索匹配上位法',
+                '本地条款知识库 TF-IDF 召回',
+                '混元大模型起草正文',
+                '回写合同标题与摘要'
+              ]"
+              :step-interval-ms="1800"
+            />
+            <textarea
+              v-else
+              class="doc-textarea font-serif flex-1"
+              v-model="contractForm.content"
               placeholder="在此开始撰写合同正文，或使用右侧 AI 助手依据模板结构自动生成条款..."
             ></textarea>
+            <div v-if="!isGenerating && lastDraftMeta" class="draft-meta mt-3">
+              <ConfidenceBadge :value="lastDraftMeta.confidence" />
+              <span class="draft-meta-note">起草已参考：法规 {{ draftRagCounts.law }} 条 · 知识库 {{ draftRagCounts.kb }} 段</span>
+              <button class="btn-link text-xs" @click="showDraftRag = !showDraftRag">
+                {{ showDraftRag ? '收起检索来源' : '展开检索来源' }}
+              </button>
+            </div>
+            <div v-if="!isGenerating && showDraftRag && lastDraftMeta" class="draft-rag-grid mt-3">
+              <RagSourceList
+                v-if="(lastDraftMeta.retrievalContext?.laws?.length ?? 0) > 0"
+                kind="law"
+                chip-prefix="L"
+                title-prefix="得理 · 法律法规"
+                :items="lastDraftMeta.retrievalContext?.laws ?? []"
+              />
+              <RagSourceList
+                v-if="(lastDraftMeta.retrievalContext?.knowledge?.length ?? 0) > 0"
+                kind="kb"
+                chip-prefix="K"
+                title-prefix="本地 RAG 知识库"
+                :items="lastDraftMeta.retrievalContext?.knowledge ?? []"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -150,12 +190,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, reactive, ref, nextTick, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { submitConsultation, submitContractDraft } from '@/shared/api/legal';
-import { createContract } from '@/shared/api/contracts';
+import { createContract, getContract, updateContract } from '@/shared/api/contracts';
+import { CONTRACT_TYPE_OPTIONS } from '@/shared/constants/contractTypes';
 import { toast } from '@/shared/ui/toast';
+import type { ContractItem } from '@/shared/types/contracts';
+import type { ContractDraftResponse } from '@/shared/types/legal';
+import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
+import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
+import RagSourceList from '@/shared/ui/RagSourceList.vue';
 
+const route = useRoute();
 const router = useRouter();
 const chatFlowRef = ref<HTMLElement>();
 
@@ -165,6 +212,8 @@ const isGenerating = ref(false);
 const isSavingDraft = ref(false);
 const isAiProcessing = ref(false);
 const aiInput = ref('');
+const currentDraftId = ref<number | null>(null);
+const linkedContract = ref<ContractItem | null>(null);
 
 interface ChatMessage {
   type: 'user' | 'bot';
@@ -172,6 +221,13 @@ interface ChatMessage {
 }
 
 const chatMessages = ref<ChatMessage[]>([]);
+const lastDraftMeta = ref<ContractDraftResponse | null>(null);
+const showDraftRag = ref(false);
+
+const draftRagCounts = computed(() => ({
+  law: lastDraftMeta.value?.retrievalContext?.laws?.length ?? 0,
+  kb: lastDraftMeta.value?.retrievalContext?.knowledge?.length ?? 0,
+}));
 
 const contractForm = reactive({
   name: '未命名云服务项目合同',
@@ -195,6 +251,24 @@ const scrollChatToBottom = async () => {
   }
 };
 
+function detectChatIntent(text: string): 'identity' | 'capability' | 'greeting' | 'thanks' | null {
+  const t = text.toLowerCase().replace(/[\s。！？!?,，.]/g, '');
+  if (/(你是谁|你叫什么|你的名字|你是什么|你是个什么|是谁啊|介绍一下你|介绍你自己|whoareyou|whatsyourname|whatareyou)/.test(t)) return 'identity';
+  if (/(你能做什么|你能干什么|你有什么功能|你会什么|你有什么能力|有哪些功能|whatcanyoudo|有什么用)/.test(t)) return 'capability';
+  if (/^(你好|您好|hi|hello|嗨|哈喽|在吗|hey)$/.test(t)) return 'greeting';
+  if (/^(谢谢|多谢|thx|thanks|感谢)/.test(t)) return 'thanks';
+  return null;
+}
+
+const CHAT_PRESETS: Record<string, string> = {
+  identity:
+    '我是 LexAI 法务专属 AI —— 基于腾讯混元 (Hunyuan) + 得理法律检索 API + 本地法规/合同知识库构建的法律辅助助手。\n\n在合同起草页，我可以帮你：\n• 解读现行条款的法律风险\n• 提炼对方诉求要素\n• 切到「Agent 修改指令」模式直接改写左侧正文\n\n你也可以直接问我任何法律或合规问题，我会调用法律检索 + LLM 给出带引用的回答。',
+  capability:
+    '我能做这些事：\n1. 法律咨询：实时检索得理法律法规 + 本地知识库，再由混元 LLM 给出带 [L#]/[K#] 引用的答案\n2. 合同风险审查：缺失项、违约金合理性、双方义务失衡、保密期限…\n3. Agent 模式：根据你的自然语言指令直接改正文（如「把违约金从 3% 提到 5%」）\n4. 自动给出建议 / 风险提示 / 法律依据，并附自评可信度\n\n切换右上角「Agent 修改指令」即可让我直接改左侧正文。',
+  greeting: '你好，我是 LexAI 法务 AI。可以问我条款相关的法律问题，或者切到「Agent 修改指令」模式让我直接改正文。',
+  thanks: '不客气～有其他法律或合同问题随时问我。',
+};
+
 const sendAiMessage = async () => {
   if (!aiInput.value.trim()) return;
 
@@ -206,38 +280,58 @@ const sendAiMessage = async () => {
     content: userMessage
   });
 
-  isAiProcessing.value = true;
   await scrollChatToBottom();
+
+  if (aiMode.value === 'ASK') {
+    const intent = detectChatIntent(userMessage);
+    if (intent && CHAT_PRESETS[intent]) {
+      chatMessages.value.push({ type: 'bot', content: CHAT_PRESETS[intent] });
+      await scrollChatToBottom();
+      return;
+    }
+  }
+
+  isAiProcessing.value = true;
 
   try {
     if (aiMode.value === 'ASK') {
+      const facts: string[] = [];
+      if (contractForm.name?.trim()) facts.push(`合同名称：${contractForm.name.trim()}`);
+      if (contractForm.type?.trim()) facts.push(`合同类型：${contractForm.type.trim()}`);
+      if (contractForm.partyA?.trim()) facts.push(`甲方：${contractForm.partyA.trim()}`);
+      if (contractForm.partyB?.trim()) facts.push(`乙方：${contractForm.partyB.trim()}`);
+      if (Number(contractForm.amount) > 0) facts.push(`金额：${contractForm.amount} 元`);
+      if (contractForm.duration?.trim()) facts.push(`期限：${contractForm.duration.trim()}`);
+      if (contractForm.content?.trim()) {
+        facts.push(`当前合同正文（节选）：${contractForm.content.slice(0, 600)}`);
+      }
+
       const resp = await submitConsultation({
         question: userMessage,
-        facts: [
-          `合同名称：${contractForm.name}`,
-          `合同类型：${contractForm.type}`,
-          `甲方：${contractForm.partyA}`,
-          `乙方：${contractForm.partyB || '（未填写）'}`,
-          `金额：${contractForm.amount} 元`,
-          `期限：${contractForm.duration || '（未填写）'}`,
-          contractForm.content ? `当前合同正文（节选）：${contractForm.content.slice(0, 600)}` : '当前合同正文：尚未生成'
-        ]
+        facts,
+        createFollowUpTask: false
       });
 
-      const answerParts: string[] = [];
+      const parts: string[] = [];
+      const stripCitations = (s: string) => s.replace(/\[(L|C|K|N\/A)\d*\]/gi, '').trim();
+      if (resp.answer && resp.answer.trim()) {
+        parts.push(stripCitations(resp.answer));
+      }
       if (resp.recommendations?.length) {
-        answerParts.push(`建议：\n- ${resp.recommendations.join('\n- ')}`);
+        parts.push(`✅ 建议\n- ${resp.recommendations.map(stripCitations).join('\n- ')}`);
       }
       if (resp.riskAlerts?.length) {
-        answerParts.push(`风险提示：\n- ${resp.riskAlerts.join('\n- ')}`);
+        parts.push(`⚠️ 风险提示\n- ${resp.riskAlerts.map(stripCitations).join('\n- ')}`);
       }
       if (resp.legalBasis?.length) {
-        answerParts.push(`法律依据：\n- ${resp.legalBasis.join('\n- ')}`);
+        parts.push(`📚 法律依据\n- ${resp.legalBasis.slice(0, 3).map(stripCitations).join('\n- ')}`);
       }
 
       chatMessages.value.push({
         type: 'bot',
-        content: answerParts.length ? answerParts.join('\n\n') : '我已收到问题，但暂时无法生成有效回复，请稍后重试。'
+        content: parts.length
+          ? parts.join('\n\n')
+          : `（识别领域：${resp.category || '综合咨询'}）抱歉，本次未能命中具体法律依据。可以补充更多事实细节后再问，或在「Agent 修改指令」模式直接让我改正文。`
       });
     } else {
       if (!contractForm.content.trim()) {
@@ -263,7 +357,8 @@ const sendAiMessage = async () => {
         partyB: contractForm.partyB,
         amount: Math.round(Number(contractForm.amount) || 0),
         duration: contractForm.duration,
-        requirements: mergedRequirements
+        requirements: mergedRequirements,
+        createFollowUpTask: false
       });
 
       contractForm.content = resp.generatedContent;
@@ -272,6 +367,12 @@ const sendAiMessage = async () => {
         content: '✅ 已根据你的指令完成修改，并已自动替换左侧正文。'
       });
     }
+  } catch (error: any) {
+    console.error('AI 助手调用失败:', error);
+    chatMessages.value.push({
+      type: 'bot',
+      content: `调用失败：${error?.message || '后端服务暂不可用，请稍后再试。'}`
+    });
   } finally {
     isAiProcessing.value = false;
     scrollChatToBottom();
@@ -284,6 +385,14 @@ function validateDraftInputs(): string | null {
   if (!contractForm.partyB.trim()) return '请输入乙方名称';
   const amount = Number(contractForm.amount);
   if (!Number.isFinite(amount) || amount <= 0) return '请输入有效的合同金额';
+  return null;
+}
+
+function validateDraftSave(): string | null {
+  if (!contractForm.name.trim()) return '请先输入合同名称';
+  if (!contractForm.content.trim() && !contractForm.partyA.trim() && !contractForm.partyB.trim()) {
+    return '请至少补充合同正文或一项基础信息后再保存';
+  }
   return null;
 }
 
@@ -303,17 +412,52 @@ const generateContract = async () => {
       partyB: contractForm.partyB,
       amount: Math.round(Number(contractForm.amount) || 0),
       duration: contractForm.duration,
-      requirements: contractForm.requirements
+      requirements: contractForm.requirements,
+      createFollowUpTask: false
     });
     contractForm.content = response.generatedContent;
+    lastDraftMeta.value = response;
+    showDraftRag.value = false;
     toast('合同已生成', 'success');
   } finally {
     isGenerating.value = false;
   }
 };
 
+async function persistContract(status: 'DRAFT' | 'UNDER_REVIEW') {
+  const payload = {
+    name: contractForm.name.trim(),
+    contractType: contractForm.type,
+    partyA: contractForm.partyA.trim(),
+    partyB: contractForm.partyB.trim(),
+    amount: Number(contractForm.amount) || 0,
+    content: contractForm.content,
+    source: 'AI_DRAFT',
+    status
+  };
+  const wasExistingDraft = currentDraftId.value !== null;
+  const saved = wasExistingDraft
+    ? await updateContract(currentDraftId.value!, payload)
+    : await createContract(payload);
+  currentDraftId.value = saved.id;
+  linkedContract.value = saved;
+  return saved;
+}
+
+async function loadExistingDraft(contractId: number) {
+  const contract = await getContract(contractId);
+  linkedContract.value = contract;
+  currentDraftId.value = contract.id;
+  contractForm.name = contract.name;
+  contractForm.type = contract.contractType;
+  contractForm.partyA = contract.partyA;
+  contractForm.partyB = contract.partyB;
+  contractForm.amount = Number(contract.amount) || 0;
+  contractForm.content = contract.content || '';
+}
+
 const saveDraft = async () => {
-  const err = validateDraftInputs();
+  const err = validateDraftSave();
   if (err) {
     toast(err, 'warning');
     return;
@@ -321,16 +465,11 @@ const saveDraft = async () => {
 
   isSavingDraft.value = true;
   try {
-    const saved = await createContract({
-      name: contractForm.name,
-      contractType: contractForm.type,
-      partyA: contractForm.partyA,
-      partyB: contractForm.partyB,
-      amount: Number(contractForm.amount) || 0,
-      source: 'AI_DRAFT',
-      status: 'DRAFT'
-    });
+    const saved = await persistContract('DRAFT');
     toast(`草稿已保存：${saved.contractNo}`, 'success');
+  } catch (error: any) {
+    console.error('保存草稿失败:', error);
+    toast(`保存草稿失败：${error?.message || '请稍后重试'}`, 'error');
   } finally {
     isSavingDraft.value = false;
   }
@@ -341,14 +480,29 @@ const submitForReview = async () => {
     toast('请先生成或填写合同正文', 'warning');
     return;
   }
+  if (!contractForm.name.trim()) {
+    toast('请先填写合同名称', 'warning');
+    return;
+  }
+  if (linkedContract.value && linkedContract.value.status !== 'DRAFT' && linkedContract.value.status !== 'UNDER_REVIEW') {
+    toast(`当前合同状态为「${linkedContract.value.status}」，不能再次提交审查。请先在合同台账重置状态或新建合同。`, 'warning');
+    return;
+  }
 
-  sessionStorage.setItem('pendingContractContent', contractForm.content);
-  sessionStorage.setItem('pendingContractName', contractForm.name);
-
-  router.push({
-    name: 'contractReview',
-    query: { fromDraft: 'true' }
-  });
+  isSavingDraft.value = true;
+  try {
+    const saved = await persistContract('UNDER_REVIEW');
+    toast(`已提交审查：${saved.contractNo}`, 'success');
+    router.push({
+      name: 'contractReview',
+      query: { contractId: String(saved.id) }
+    });
+  } catch (error: any) {
+    console.error('提交审查失败:', error);
+    toast(`提交审查失败：${error?.message || '请稍后重试'}`, 'error');
+  } finally {
+    isSavingDraft.value = false;
+  }
 };
 
 const copyContent = async () => {
@@ -369,6 +523,21 @@ const downloadContent = () => {
   element.click();
   document.body.removeChild(element);
 };
+
+onMounted(async () => {
+  const rawContractId = route.query.contractId;
+  const contractId = typeof rawContractId === 'string' ? Number(rawContractId) : Number.NaN;
+  if (!Number.isInteger(contractId) || contractId <= 0) {
+    return;
+  }
+
+  try {
+    await loadExistingDraft(contractId);
+  } catch (error) {
+    console.error('加载合同草稿失败:', error);
+    toast('加载合同草稿失败，请稍后重试', 'error');
+  }
+});
 </script>
 
 <style scoped>
@@ -475,7 +644,7 @@ const downloadContent = () => {
 }
 
 .workspace-grid.sidebar-open {
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: minmax(0, 1fr) 400px;
 }
 
 .editor-col {
@@ -532,6 +701,37 @@ const downloadContent = () => {
   line-height: 1.8;
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.draft-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.draft-meta-note { color: var(--text-muted); }
+.btn-link {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.75rem;
+}
+.btn-link:hover { opacity: 0.8; }
+
+.draft-rag-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.draft-rag-grid > * {
+  min-width: 0;
+}
+@media (max-width: 1024px) {
+  .draft-rag-grid { grid-template-columns: 1fr; }
 }
 
 .btn-action {

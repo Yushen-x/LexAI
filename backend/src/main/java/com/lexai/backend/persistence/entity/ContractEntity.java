@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -22,7 +23,6 @@ public class ContractEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 展示用编号，如 LX-2026-001 */
     @Column(name = "contract_no", nullable = false, unique = true, length = 64)
     private String contractNo;
 
@@ -41,12 +41,38 @@ public class ContractEntity {
     @Column(precision = 19, scale = 2)
     private BigDecimal amount;
 
+    @Lob
+    @Column(name = "content", columnDefinition = "LONGTEXT")
+    private String content;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ContractStatus status;
 
     @Column(length = 256)
     private String source;
+
+    @Lob
+    @Column(name = "review_summary", columnDefinition = "LONGTEXT")
+    private String reviewSummary;
+
+    @Lob
+    @Column(name = "review_risks_json", columnDefinition = "LONGTEXT")
+    private String reviewRisksJson;
+
+    @Lob
+    @Column(name = "review_missing_clauses_json", columnDefinition = "LONGTEXT")
+    private String reviewMissingClausesJson;
+
+    @Lob
+    @Column(name = "reviewer_opinion", columnDefinition = "LONGTEXT")
+    private String reviewerOpinion;
+
+    @Column(name = "review_decision", length = 64)
+    private String reviewDecision;
+
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -127,6 +153,14 @@ public class ContractEntity {
         this.amount = amount;
     }
 
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
     public ContractStatus getStatus() {
         return status;
     }
@@ -141,6 +175,54 @@ public class ContractEntity {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getReviewSummary() {
+        return reviewSummary;
+    }
+
+    public void setReviewSummary(String reviewSummary) {
+        this.reviewSummary = reviewSummary;
+    }
+
+    public String getReviewRisksJson() {
+        return reviewRisksJson;
+    }
+
+    public void setReviewRisksJson(String reviewRisksJson) {
+        this.reviewRisksJson = reviewRisksJson;
+    }
+
+    public String getReviewMissingClausesJson() {
+        return reviewMissingClausesJson;
+    }
+
+    public void setReviewMissingClausesJson(String reviewMissingClausesJson) {
+        this.reviewMissingClausesJson = reviewMissingClausesJson;
+    }
+
+    public String getReviewerOpinion() {
+        return reviewerOpinion;
+    }
+
+    public void setReviewerOpinion(String reviewerOpinion) {
+        this.reviewerOpinion = reviewerOpinion;
+    }
+
+    public String getReviewDecision() {
+        return reviewDecision;
+    }
+
+    public void setReviewDecision(String reviewDecision) {
+        this.reviewDecision = reviewDecision;
+    }
+
+    public Instant getReviewedAt() {
+        return reviewedAt;
+    }
+
+    public void setReviewedAt(Instant reviewedAt) {
+        this.reviewedAt = reviewedAt;
     }
 
     public Instant getCreatedAt() {

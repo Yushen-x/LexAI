@@ -52,7 +52,7 @@ const router = createRouter({
           path: 'workflow-pending',
           name: 'workflowPending',
           component: () => import('@/modules/workflow/views/WorkflowPendingView.vue'),
-          meta: { title: '待办任务' }
+          meta: { title: '合同审查待办' }
         }
       ]
     }
