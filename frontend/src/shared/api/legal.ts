@@ -18,9 +18,11 @@ export interface ContractDraftRequest {
   amount: number;
   duration?: string;
   requirements?: string;
+  createFollowUpTask?: boolean;
 }
 
 export interface ContractDraftResponse {
+  title: string | null;
   generatedContent: string;
   summary: string;
   generatedAt: string;

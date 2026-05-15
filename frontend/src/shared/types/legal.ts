@@ -12,9 +12,16 @@ export interface PlatformOverview {
   capabilities: string[];
 }
 
+export interface RetrievalContext {
+  laws: string[];
+  cases: string[];
+  knowledge: string[];
+}
+
 export interface ConsultationRequest {
   question: string;
   facts: string[];
+  createFollowUpTask?: boolean;
 }
 
 export interface ConsultationResponse {
@@ -22,11 +29,15 @@ export interface ConsultationResponse {
   legalBasis: string[];
   recommendations: string[];
   riskAlerts: string[];
+  confidence?: number | null;
+  retrievalContext: RetrievalContext;
+  answer?: string | null;
 }
 
 export interface CaseAnalysisRequest {
   caseSummary: string;
   evidencePoints: string[];
+  createFollowUpTask?: boolean;
 }
 
 export interface CaseAnalysisResponse {
@@ -34,11 +45,15 @@ export interface CaseAnalysisResponse {
   disputedIssues: string[];
   evidenceGaps: string[];
   suggestedActions: string[];
+  confidence?: number | null;
+  retrievalContext: RetrievalContext;
 }
 
 export interface ContractReviewRequest {
   contractTitle: string;
   contractContent: string;
+  contractId?: number;
+  createFollowUpTask?: boolean;
 }
 
 export interface ContractRiskItem {
@@ -52,6 +67,8 @@ export interface ContractReviewResponse {
   risks: ContractRiskItem[];
   missingClauses: string[];
   summary: string;
+  confidence?: number | null;
+  retrievalContext: RetrievalContext;
 }
 
 export interface ContractDraftRequest {
@@ -62,11 +79,15 @@ export interface ContractDraftRequest {
   amount: number;
   duration?: string;
   requirements?: string;
+  createFollowUpTask?: boolean;
 }
 
 export interface ContractDraftResponse {
+  title: string | null;
   generatedContent: string;
   summary: string;
   generatedAt: string;
+  confidence?: number | null;
+  retrievalContext?: RetrievalContext;
 }
 

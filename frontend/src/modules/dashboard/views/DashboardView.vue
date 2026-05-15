@@ -2,24 +2,34 @@
   <div class="page-container fade-in">
     <p v-if="errorBanner" class="error-banner mb-6">{{ errorBanner }}</p>
 
-    <!-- Welcome Banner Section -->
-    <div class="welcome-banner mb-6 card flex justify-between items-center" style="padding: 1.5rem 2rem; border-left: 4px solid var(--primary); background: var(--bg-surface); color: var(--text-strong); box-shadow: var(--shadow-sm);">
-      <div class="welcome-content">
-        <h2 class="welcome-title" style="margin: 0 0 0.25rem 0; font-size: 1.5rem; color: var(--text-strong); font-weight: 700;">欢迎回来, {{ userName }}</h2>
-        <p class="welcome-subtitle" style="margin: 0; color: var(--text-muted); font-size: 0.9375rem;">
-          {{ overview?.positioning || 'LexAI 智慧合同管理系统已准备就绪' }}
-        </p>
-        <div v-if="overview?.projectName" class="user-meta mt-3 flex items-center">
-          <span class="badge badge-primary mr-2">{{ overview.projectName }}</span>
-          <span class="badge" style="background: var(--bg-app); color: var(--text-muted); border: 1px solid var(--border-light)">
-            工作台
-          </span>
+    <!-- Hero Banner -->
+    <div class="hero-banner mb-6">
+      <div class="hero-bg-grid" aria-hidden="true"></div>
+      <div class="hero-content">
+        <div class="hero-eyebrow">
+          <span class="hero-pill">LexAI · 智慧法律应用</span>
+          <span class="hero-pill subtle">2026 服创大赛 · 腾讯赛道</span>
         </div>
-      </div>
-      <div class="welcome-action">
-        <button type="button" class="btn btn-primary" @click="goWorkflow">
-          处理待办
-        </button>
+        <h1 class="hero-title">
+          {{ userName }}，欢迎回到 <span class="brand-grad">LexAI</span> 工作台
+        </h1>
+        <p class="hero-sub">
+          {{ overview?.positioning || '腾讯混元大模型 × 得理法律开放平台 × 本地知识库 RAG，把"合同 → 审查 → 决策"打成一条链。' }}
+        </p>
+        <div class="hero-tags">
+          <span class="tech-tag">腾讯混元 hunyuan-lite</span>
+          <span class="tech-tag">得理法律 OpenAPI</span>
+          <span class="tech-tag">本地 RAG · TF-IDF 索引</span>
+          <span class="tech-tag">Spring Boot · Vue 3</span>
+        </div>
+        <div class="hero-actions">
+          <button type="button" class="btn btn-primary" @click="goWorkflow">
+            处理待办（{{ pendingTaskCount }}）
+          </button>
+          <button type="button" class="btn btn-secondary" @click="goConsultation">
+            体验法律咨询 AI
+          </button>
+        </div>
       </div>
     </div>
 
@@ -43,21 +53,25 @@
             <h3 class="card-title">管理与快捷功能</h3>
           </div>
           <div class="quick-actions-grid pt-4">
-            <button type="button" class="action-btn" @click="goContractList">
+            <button type="button" class="action-btn" @click="goContractList" title="所有合同的总账，从这里进入起草、审查与归档">
               <div class="icon-box" style="background: #eff6ff; color: #3b82f6;"><IconContract style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">合同台账</span>
+              <span class="action-sub">主数据 · 总入口</span>
             </button>
-            <button type="button" class="action-btn" @click="goWorkflow">
+            <button type="button" class="action-btn" @click="goWorkflow" title="集中跟进等待人工确认的合同审查">
               <div class="icon-box" style="background: #fef3c7; color: #f59e0b;"><IconWorkflow style="width: 26px; height: 26px; opacity: 0.9;" /></div>
-              <span class="action-text">待办任务</span>
+              <span class="action-text">合同审查待办</span>
+              <span class="action-sub">人工拍板 · 闭环</span>
             </button>
-            <button type="button" class="action-btn" @click="goConsultation">
-              <div class="icon-box" style="background: #f3e8ff; color: #8b5cf6;"><IconConsultation style="width: 26px; height: 26px; opacity: 0.9;" /></div>
-              <span class="action-text">法律咨询</span>
-            </button>
-            <button type="button" class="action-btn" @click="goContractReview">
+            <button type="button" class="action-btn" @click="goContractReview" title="单份合同的 AI + 人工审查工作页">
               <div class="icon-box" style="background: #d1fae5; color: #10b981;"><IconReview style="width: 26px; height: 26px; opacity: 0.9;" /></div>
               <span class="action-text">合同审查</span>
+              <span class="action-sub">AI 风险 · 决策</span>
+            </button>
+            <button type="button" class="action-btn" @click="goConsultation" title="即问即答的法律咨询 AI 工具，不进入合同流程">
+              <div class="icon-box" style="background: #f3e8ff; color: #8b5cf6;"><IconConsultation style="width: 26px; height: 26px; opacity: 0.9;" /></div>
+              <span class="action-text">法律咨询</span>
+              <span class="action-sub">AI 工具 · 即用</span>
             </button>
           </div>
         </div>
@@ -83,7 +97,10 @@
       <div class="right-col gap-6 flex-col flex">
         <div class="card">
           <div class="card-header pb-4 border-b flex justify-between items-center">
-            <h3 class="card-title">待办任务</h3>
+            <div>
+              <h3 class="card-title">合同审查待办</h3>
+              <p class="text-xs text-muted m-0 mt-1">等待人工确认的合同审查清单（处理后会自动同步台账）</p>
+            </div>
             <button
               type="button"
               class="text-primary text-sm cursor-pointer hover-underline btn-linkish"
@@ -252,22 +269,28 @@ const systemStatus = computed(() => [
     badgeClass: healthUp.value ? 'badge-success' : 'badge-danger',
   },
   {
-    name: '平台概览',
-    value: overview.value ? '已加载' : '—',
-    color: overview.value ? '#16a34a' : '#94a3b8',
-    badgeClass: overview.value ? 'badge-success' : 'badge-warning',
-  },
-  {
-    name: '数据存储',
-    value: 'H2 演示库',
+    name: '腾讯混元大模型',
+    value: 'hunyuan-lite · 已接入',
     color: '#16a34a',
     badgeClass: 'badge-success',
   },
   {
-    name: 'AI 推理',
-    value: 'Mock 网关',
-    color: '#ca8a04',
-    badgeClass: 'badge-warning',
+    name: '得理法律开放平台',
+    value: '法规 + 类案 双通路',
+    color: '#16a34a',
+    badgeClass: 'badge-success',
+  },
+  {
+    name: '本地知识库 RAG',
+    value: '8 份文档 · TF-IDF 索引',
+    color: '#16a34a',
+    badgeClass: 'badge-success',
+  },
+  {
+    name: '数据存储',
+    value: 'MySQL 持久化',
+    color: '#16a34a',
+    badgeClass: 'badge-success',
   },
 ]);
 
@@ -467,7 +490,128 @@ onMounted(() => {
   text-decoration: underline;
 }
 
-/* Welcome Banner styling replaced by inline unified styles */
+/* Hero Banner */
+.hero-banner {
+  position: relative;
+  border-radius: 18px;
+  padding: 2rem 2.25rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #6d28d9 100%);
+  color: #fff;
+  box-shadow: 0 16px 36px rgba(76, 29, 149, 0.25);
+}
+
+.hero-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06), transparent 45%),
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: auto, auto, 40px 40px, 40px 40px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 920px;
+}
+
+.hero-eyebrow {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.hero-pill.subtle {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hero-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.brand-grad {
+  background: linear-gradient(90deg, #fbbf24, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 800;
+}
+
+.hero-sub {
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+}
+
+.hero-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.tech-tag {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.72rem;
+  color: #e0e7ff;
+  font-weight: 500;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.hero-actions .btn-primary {
+  background: #fff;
+  color: #4c1d95;
+  border: none;
+  font-weight: 700;
+}
+.hero-actions .btn-primary:hover {
+  background: #faf5ff;
+  transform: translateY(-1px);
+}
+
+.hero-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.hero-actions .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
 
 .stats-grid {
   display: grid;
@@ -590,6 +734,14 @@ onMounted(() => {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-main);
+}
+
+.action-sub {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
 .status-list {

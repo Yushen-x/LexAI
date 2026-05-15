@@ -1,0 +1,1924 @@
+{
+  "project": {
+    "title": "LLM-Based Dynamic Black-Box Testing for LexAI REST APIs",
+    "system_name": "LexAI",
+    "input_mode": "requirements_and_api_contracts",
+    "techniques": [
+      "Equivalence Partitioning",
+      "Boundary Value Analysis",
+      "Decision Table Testing"
+    ]
+  },
+  "model_artifact": {
+    "model": "GPT-5",
+    "prompt_file": "assignment1-blackbox/tool/prompt_template.md"
+  },
+  "generated_at": "2026-04-14T18:20:18.782194+00:00",
+  "summary": {
+    "endpoint_count": 8,
+    "equivalence_partition_count": 63,
+    "boundary_set_count": 4,
+    "decision_row_count": 19,
+    "test_case_count": 56
+  },
+  "endpoints": [
+    {
+      "id": "CT_LIST",
+      "name": "List contracts",
+      "method": "GET",
+      "path": "/api/contracts",
+      "input_variables": [
+        {
+          "name": "keyword",
+          "location": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "status",
+          "location": "query",
+          "type": "enum",
+          "required": false
+        },
+        {
+          "name": "type",
+          "location": "query",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "page",
+          "location": "query",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "size",
+          "location": "query",
+          "type": "integer",
+          "required": false
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "keyword",
+          "partition_id": "QUERY-keyword-EP0",
+          "class": "valid",
+          "description": "Optional field provided with a valid value."
+        },
+        {
+          "field": "status",
+          "partition_id": "QUERY-status-EP4",
+          "class": "valid",
+          "description": "Field uses one of the documented enum values."
+        },
+        {
+          "field": "status",
+          "partition_id": "QUERY-status-EP5",
+          "class": "invalid",
+          "description": "Field uses an enum value outside the documented domain."
+        },
+        {
+          "field": "type",
+          "partition_id": "QUERY-type-EP0",
+          "class": "valid",
+          "description": "Optional field provided with a valid value."
+        },
+        {
+          "field": "page",
+          "partition_id": "QUERY-page-EP8",
+          "class": "valid",
+          "description": "Optional field omitted and server applies default value 0."
+        },
+        {
+          "field": "size",
+          "partition_id": "QUERY-size-EP8",
+          "class": "valid",
+          "description": "Optional field omitted and server applies default value 20."
+        }
+      ],
+      "boundary_values": [
+        {
+          "field": "page",
+          "location": "query",
+          "values": [
+            -1,
+            0,
+            1
+          ],
+          "rationale": "Boundary set around the lower effective limit."
+        },
+        {
+          "field": "size",
+          "location": "query",
+          "values": [
+            0,
+            1,
+            2
+          ],
+          "rationale": "Boundary set around the lower effective limit."
+        },
+        {
+          "field": "size",
+          "location": "query",
+          "values": [
+            99,
+            100,
+            101
+          ],
+          "rationale": "Boundary set around the upper effective limit."
+        }
+      ],
+      "decision_table": [
+        {
+          "conditions": {
+            "parameter": "page",
+            "outside_effective_range": true
+          },
+          "expected_result": "Request still succeeds and the server normalizes the parameter."
+        },
+        {
+          "conditions": {
+            "parameter": "size",
+            "outside_effective_range": true
+          },
+          "expected_result": "Request still succeeds and the server normalizes the parameter."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "CT_LIST-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 20
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC02",
+          "title": "Invalid enum for status",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 20,
+              "status": "UNKNOWN_VALUE"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because enum value is outside the accepted domain.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC03",
+          "title": "Omit optional field page for default handling",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "size": 20
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response and server applies default value for page.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC04A",
+          "title": "Lower boundary for page = -1",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": -1,
+              "size": 20
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with normalized lower bound behavior.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC04B",
+          "title": "Lower boundary for page = 0",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 20
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response at lower boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC04C",
+          "title": "Lower boundary for page = 1",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 1,
+              "size": 20
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response just above lower boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC05",
+          "title": "Omit optional field size for default handling",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response and server applies default value for size.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC06A",
+          "title": "Lower boundary for size = 0",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 0
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with normalized lower bound behavior.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC06B",
+          "title": "Lower boundary for size = 1",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 1
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response at lower boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC06C",
+          "title": "Lower boundary for size = 2",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 2
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response just above lower boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC06D",
+          "title": "Upper boundary for size = 99",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 99
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response just below upper boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC06E",
+          "title": "Upper boundary for size = 100",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 100
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response at upper boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "CT_LIST-TC06F",
+          "title": "Upper boundary for size = 101",
+          "request": {
+            "method": "GET",
+            "path": "/api/contracts",
+            "query": {
+              "page": 0,
+              "size": 101
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with normalized upper bound behavior.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CT_CREATE",
+      "name": "Create contract",
+      "method": "POST",
+      "path": "/api/contracts",
+      "input_variables": [
+        {
+          "name": "name",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contractType",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "partyA",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "partyB",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "amount",
+          "location": "body",
+          "type": "decimal",
+          "required": false
+        },
+        {
+          "name": "source",
+          "location": "body",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "status",
+          "location": "body",
+          "type": "enum",
+          "required": false
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "name",
+          "partition_id": "BODY-name-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "name",
+          "partition_id": "BODY-name-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "name",
+          "partition_id": "BODY-name-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "contractType",
+          "partition_id": "BODY-contractType-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "contractType",
+          "partition_id": "BODY-contractType-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "contractType",
+          "partition_id": "BODY-contractType-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "partyA",
+          "partition_id": "BODY-partyA-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "partyA",
+          "partition_id": "BODY-partyA-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "partyA",
+          "partition_id": "BODY-partyA-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "partyB",
+          "partition_id": "BODY-partyB-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "partyB",
+          "partition_id": "BODY-partyB-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "partyB",
+          "partition_id": "BODY-partyB-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "amount",
+          "partition_id": "BODY-amount-EP8",
+          "class": "valid",
+          "description": "Optional field omitted and server applies default value 0."
+        },
+        {
+          "field": "source",
+          "partition_id": "BODY-source-EP8",
+          "class": "valid",
+          "description": "Optional field omitted and server applies default value workspace input."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP4",
+          "class": "valid",
+          "description": "Field uses one of the documented enum values."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP5",
+          "class": "invalid",
+          "description": "Field uses an enum value outside the documented domain."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP8",
+          "class": "valid",
+          "description": "Optional field omitted and server applies default value DRAFT."
+        }
+      ],
+      "boundary_values": [],
+      "decision_table": [
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request succeeds with HTTP 200 and returns SUCCESS envelope."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": false,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request fails with HTTP 400 due to validation error."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": true
+          },
+          "expected_result": "Request succeeds and server applies documented default values."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "CT_CREATE-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC02",
+          "title": "Missing required field name",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC03",
+          "title": "Blank string for name",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "   ",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC04",
+          "title": "Missing required field contractType",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC05",
+          "title": "Blank string for contractType",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "   ",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC06",
+          "title": "Missing required field partyA",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC07",
+          "title": "Blank string for partyA",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "   ",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC08",
+          "title": "Missing required field partyB",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC09",
+          "title": "Blank string for partyB",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "   ",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC10",
+          "title": "Omit optional field amount for default handling",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "source": "manual import",
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response and server applies default value for amount.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC11",
+          "title": "Omit optional field source for default handling",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response and server applies default value for source.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC12",
+          "title": "Invalid enum for status",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import",
+              "status": "UNKNOWN_VALUE"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because enum value is outside the accepted domain.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_CREATE-TC13",
+          "title": "Omit optional field status for default handling",
+          "request": {
+            "method": "POST",
+            "path": "/api/contracts",
+            "body": {
+              "name": "Campus Service Agreement",
+              "contractType": "Service Contract",
+              "partyA": "LexAI Lab",
+              "partyB": "Campus Vendor",
+              "amount": 12500.0,
+              "source": "manual import"
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response and server applies default value for status.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CT_STATUS",
+      "name": "Update contract status",
+      "method": "PUT",
+      "path": "/api/contracts/{id}/status",
+      "input_variables": [
+        {
+          "name": "id",
+          "location": "path",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "name": "status",
+          "location": "body",
+          "type": "enum",
+          "required": true
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "id",
+          "partition_id": "PATH-id-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "id",
+          "partition_id": "PATH-id-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP4",
+          "class": "valid",
+          "description": "Field uses one of the documented enum values."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP5",
+          "class": "invalid",
+          "description": "Field uses an enum value outside the documented domain."
+        }
+      ],
+      "boundary_values": [],
+      "decision_table": [
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request succeeds with HTTP 200 and returns SUCCESS envelope."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": false,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request fails with HTTP 400 due to validation error."
+        },
+        {
+          "conditions": {
+            "resource_exists": true
+          },
+          "expected_result": "Request succeeds with HTTP 200."
+        },
+        {
+          "conditions": {
+            "resource_exists": false
+          },
+          "expected_result": "Request fails with HTTP 404 and FAILED envelope."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "CT_STATUS-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "PUT",
+            "path": "/api/contracts/{id}/status",
+            "path_params": {
+              "id": 1
+            },
+            "body": {
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_STATUS-TC02",
+          "title": "Missing required field status",
+          "request": {
+            "method": "PUT",
+            "path": "/api/contracts/{id}/status",
+            "path_params": {
+              "id": 1
+            },
+            "body": {}
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_STATUS-TC03",
+          "title": "Invalid enum for status",
+          "request": {
+            "method": "PUT",
+            "path": "/api/contracts/{id}/status",
+            "path_params": {
+              "id": 1
+            },
+            "body": {
+              "status": "UNKNOWN_VALUE"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because enum value is outside the accepted domain.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "CT_STATUS-TC04",
+          "title": "Missing resource id for id",
+          "request": {
+            "method": "PUT",
+            "path": "/api/contracts/{id}/status",
+            "path_params": {
+              "id": 999999
+            },
+            "body": {
+              "status": "DRAFT"
+            }
+          },
+          "expected_http_status": 404,
+          "expected_result": "FAILED response because the resource does not exist.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TS_LIST",
+      "name": "List tasks",
+      "method": "GET",
+      "path": "/api/tasks",
+      "input_variables": [
+        {
+          "name": "status",
+          "location": "query",
+          "type": "enum",
+          "required": false
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "status",
+          "partition_id": "QUERY-status-EP4",
+          "class": "valid",
+          "description": "Field uses one of the documented enum values."
+        },
+        {
+          "field": "status",
+          "partition_id": "QUERY-status-EP5",
+          "class": "invalid",
+          "description": "Field uses an enum value outside the documented domain."
+        }
+      ],
+      "boundary_values": [],
+      "decision_table": [],
+      "test_cases": [
+        {
+          "id": "TS_LIST-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "GET",
+            "path": "/api/tasks",
+            "query": {}
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "TS_LIST-TC02",
+          "title": "Invalid enum for status",
+          "request": {
+            "method": "GET",
+            "path": "/api/tasks",
+            "query": {
+              "status": "UNKNOWN_VALUE"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because enum value is outside the accepted domain.",
+          "coverage_tags": [
+            "EP"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TS_STATUS",
+      "name": "Update task status",
+      "method": "PUT",
+      "path": "/api/tasks/{id}/status",
+      "input_variables": [
+        {
+          "name": "id",
+          "location": "path",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "name": "status",
+          "location": "body",
+          "type": "enum",
+          "required": true
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "id",
+          "partition_id": "PATH-id-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "id",
+          "partition_id": "PATH-id-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP4",
+          "class": "valid",
+          "description": "Field uses one of the documented enum values."
+        },
+        {
+          "field": "status",
+          "partition_id": "BODY-status-EP5",
+          "class": "invalid",
+          "description": "Field uses an enum value outside the documented domain."
+        }
+      ],
+      "boundary_values": [],
+      "decision_table": [
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request succeeds with HTTP 200 and returns SUCCESS envelope."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": false,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request fails with HTTP 400 due to validation error."
+        },
+        {
+          "conditions": {
+            "resource_exists": true
+          },
+          "expected_result": "Request succeeds with HTTP 200."
+        },
+        {
+          "conditions": {
+            "resource_exists": false
+          },
+          "expected_result": "Request fails with HTTP 404 and FAILED envelope."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "TS_STATUS-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "PUT",
+            "path": "/api/tasks/{id}/status",
+            "path_params": {
+              "id": 1
+            },
+            "body": {
+              "status": "PENDING"
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "TS_STATUS-TC02",
+          "title": "Missing required field status",
+          "request": {
+            "method": "PUT",
+            "path": "/api/tasks/{id}/status",
+            "path_params": {
+              "id": 1
+            },
+            "body": {}
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "TS_STATUS-TC03",
+          "title": "Invalid enum for status",
+          "request": {
+            "method": "PUT",
+            "path": "/api/tasks/{id}/status",
+            "path_params": {
+              "id": 1
+            },
+            "body": {
+              "status": "UNKNOWN_VALUE"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because enum value is outside the accepted domain.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "TS_STATUS-TC04",
+          "title": "Missing resource id for id",
+          "request": {
+            "method": "PUT",
+            "path": "/api/tasks/{id}/status",
+            "path_params": {
+              "id": 999999
+            },
+            "body": {
+              "status": "PENDING"
+            }
+          },
+          "expected_http_status": 404,
+          "expected_result": "FAILED response because the resource does not exist.",
+          "coverage_tags": [
+            "EP",
+            "DT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LEGAL_CONSULTATION",
+      "name": "Legal consultation",
+      "method": "POST",
+      "path": "/api/legal/consultation",
+      "input_variables": [
+        {
+          "name": "question",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "facts",
+          "location": "body",
+          "type": "list_string",
+          "required": false
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "question",
+          "partition_id": "BODY-question-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "question",
+          "partition_id": "BODY-question-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "question",
+          "partition_id": "BODY-question-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "facts",
+          "partition_id": "BODY-facts-EP0",
+          "class": "valid",
+          "description": "Optional field provided with a valid value."
+        }
+      ],
+      "boundary_values": [],
+      "decision_table": [
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request succeeds with HTTP 200 and returns SUCCESS envelope."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": false,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request fails with HTTP 400 due to validation error."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "LEGAL_CONSULTATION-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/consultation",
+            "body": {
+              "question": "Can an employer terminate a fixed-term contract early?",
+              "facts": [
+                "The employee has worked for 8 months.",
+                "No written warning was issued."
+              ]
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_CONSULTATION-TC02",
+          "title": "Missing required field question",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/consultation",
+            "body": {
+              "facts": [
+                "The employee has worked for 8 months.",
+                "No written warning was issued."
+              ]
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_CONSULTATION-TC03",
+          "title": "Blank string for question",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/consultation",
+            "body": {
+              "question": "   ",
+              "facts": [
+                "The employee has worked for 8 months.",
+                "No written warning was issued."
+              ]
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LEGAL_REVIEW",
+      "name": "Contract review",
+      "method": "POST",
+      "path": "/api/legal/contract-review",
+      "input_variables": [
+        {
+          "name": "contractTitle",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contractContent",
+          "location": "body",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "contractTitle",
+          "partition_id": "BODY-contractTitle-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "contractTitle",
+          "partition_id": "BODY-contractTitle-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "contractTitle",
+          "partition_id": "BODY-contractTitle-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "contractContent",
+          "partition_id": "BODY-contractContent-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "contractContent",
+          "partition_id": "BODY-contractContent-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "contractContent",
+          "partition_id": "BODY-contractContent-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        }
+      ],
+      "boundary_values": [],
+      "decision_table": [
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request succeeds with HTTP 200 and returns SUCCESS envelope."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": false,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request fails with HTTP 400 due to validation error."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "LEGAL_REVIEW-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-review",
+            "body": {
+              "contractTitle": "Equipment Lease Agreement",
+              "contractContent": "Party B shall pay the full annual rent in advance. Party A may terminate without refund at any time."
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_REVIEW-TC02",
+          "title": "Missing required field contractTitle",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-review",
+            "body": {
+              "contractContent": "Party B shall pay the full annual rent in advance. Party A may terminate without refund at any time."
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_REVIEW-TC03",
+          "title": "Blank string for contractTitle",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-review",
+            "body": {
+              "contractTitle": "   ",
+              "contractContent": "Party B shall pay the full annual rent in advance. Party A may terminate without refund at any time."
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_REVIEW-TC04",
+          "title": "Missing required field contractContent",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-review",
+            "body": {
+              "contractTitle": "Equipment Lease Agreement"
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_REVIEW-TC05",
+          "title": "Blank string for contractContent",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-review",
+            "body": {
+              "contractTitle": "Equipment Lease Agreement",
+              "contractContent": "   "
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LEGAL_DRAFT",
+      "name": "Contract draft",
+      "method": "POST",
+      "path": "/api/legal/contract-draft",
+      "input_variables": [
+        {
+          "name": "contractName",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "contractType",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "partyA",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "partyB",
+          "location": "body",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "amount",
+          "location": "body",
+          "type": "long",
+          "required": false
+        },
+        {
+          "name": "duration",
+          "location": "body",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "requirements",
+          "location": "body",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "equivalence_partitions": [
+        {
+          "field": "contractName",
+          "partition_id": "BODY-contractName-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "contractName",
+          "partition_id": "BODY-contractName-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "contractName",
+          "partition_id": "BODY-contractName-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "contractType",
+          "partition_id": "BODY-contractType-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "contractType",
+          "partition_id": "BODY-contractType-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "contractType",
+          "partition_id": "BODY-contractType-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "partyA",
+          "partition_id": "BODY-partyA-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "partyA",
+          "partition_id": "BODY-partyA-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "partyA",
+          "partition_id": "BODY-partyA-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "partyB",
+          "partition_id": "BODY-partyB-EP1",
+          "class": "valid",
+          "description": "Required field provided with a valid value."
+        },
+        {
+          "field": "partyB",
+          "partition_id": "BODY-partyB-EP2",
+          "class": "invalid",
+          "description": "Required field omitted from the request."
+        },
+        {
+          "field": "partyB",
+          "partition_id": "BODY-partyB-EP3",
+          "class": "invalid",
+          "description": "Field is present but blank or whitespace-only."
+        },
+        {
+          "field": "amount",
+          "partition_id": "BODY-amount-EP6",
+          "class": "valid",
+          "description": "Numeric value is strictly greater than zero."
+        },
+        {
+          "field": "amount",
+          "partition_id": "BODY-amount-EP7",
+          "class": "invalid",
+          "description": "Numeric value is zero or negative."
+        },
+        {
+          "field": "duration",
+          "partition_id": "BODY-duration-EP0",
+          "class": "valid",
+          "description": "Optional field provided with a valid value."
+        },
+        {
+          "field": "requirements",
+          "partition_id": "BODY-requirements-EP0",
+          "class": "valid",
+          "description": "Optional field provided with a valid value."
+        }
+      ],
+      "boundary_values": [
+        {
+          "field": "amount",
+          "location": "body",
+          "values": [
+            -1,
+            0,
+            1
+          ],
+          "rationale": "Boundary set for a positive-only numeric field."
+        }
+      ],
+      "decision_table": [
+        {
+          "conditions": {
+            "required_fields_valid": true,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request succeeds with HTTP 200 and returns SUCCESS envelope."
+        },
+        {
+          "conditions": {
+            "required_fields_valid": false,
+            "optional_fields_omitted": false
+          },
+          "expected_result": "Request fails with HTTP 400 due to validation error."
+        }
+      ],
+      "test_cases": [
+        {
+          "id": "LEGAL_DRAFT-TC01",
+          "title": "Baseline valid request",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response with valid business payload.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC02",
+          "title": "Missing required field contractName",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC03",
+          "title": "Blank string for contractName",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "   ",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC04",
+          "title": "Missing required field contractType",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC05",
+          "title": "Blank string for contractType",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "   ",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC06",
+          "title": "Missing required field partyA",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC07",
+          "title": "Blank string for partyA",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "   ",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC08",
+          "title": "Missing required field partyB",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response with field-level validation error.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC09",
+          "title": "Blank string for partyB",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "   ",
+              "amount": 50000
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because blank text violates non-blank validation.",
+          "coverage_tags": [
+            "EP"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC10A",
+          "title": "Positive boundary for amount = 0",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 0
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because value must be positive.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC10B",
+          "title": "Positive boundary for amount = -1",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": -1
+            }
+          },
+          "expected_http_status": 400,
+          "expected_result": "FAILED response because value must be positive.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        },
+        {
+          "id": "LEGAL_DRAFT-TC10C",
+          "title": "Positive boundary for amount = 1",
+          "request": {
+            "method": "POST",
+            "path": "/api/legal/contract-draft",
+            "body": {
+              "contractName": "Software Procurement Contract",
+              "contractType": "Procurement Contract",
+              "partyA": "LexAI Co.",
+              "partyB": "Tech Supplier Ltd.",
+              "amount": 1
+            }
+          },
+          "expected_http_status": 200,
+          "expected_result": "SUCCESS response because value is the smallest valid positive boundary.",
+          "coverage_tags": [
+            "BVA"
+          ]
+        }
+      ]
+    }
+  ]
+}

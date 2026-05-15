@@ -181,7 +181,7 @@ echo  +-----------------------------------------------+
 echo  ^|                                               ^|
 echo  ^|  Frontend:  http://localhost:%FRONTEND_PORT%            ^|
 echo  ^|  Backend:   http://localhost:%BACKEND_PORT%/api         ^|
-echo  ^|  H2 Console:http://localhost:%BACKEND_PORT%/api/h2-console ^|
+echo  ^|  Database:  MySQL / Configured via backend\.env ^|
 echo  ^|                                               ^|
 echo  ^|  To stop: close the Backend/Frontend windows  ^|
 echo  ^|                                               ^|

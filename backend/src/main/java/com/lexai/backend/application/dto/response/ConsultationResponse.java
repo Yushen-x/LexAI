@@ -6,7 +6,9 @@ public record ConsultationResponse(
         String category,
         List<String> legalBasis,
         List<String> recommendations,
-        List<String> riskAlerts
+        List<String> riskAlerts,
+        Double confidence,
+        RetrievalContext retrievalContext,
+        String answer
 ) {
 }
-

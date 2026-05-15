@@ -72,12 +72,12 @@ const route = useRoute();
 
 const navItems = [
   { to: '/dashboard', title: '工作台', icon: LayoutDashboard },
-  { to: '/contract-draft', title: '合同起草', icon: FileEdit },
   { to: '/contract-list', title: '合同台账', icon: Files },
-  { to: '/workflow-pending', title: '待办任务', icon: ListTodo },
+  { to: '/contract-draft', title: '合同起草', icon: FileEdit },
+  { to: '/contract-review', title: '合同审查', icon: FileSearch },
+  { to: '/workflow-pending', title: '审查待办', icon: ListTodo },
   { to: '/consultation', title: '法律咨询', icon: MessageSquare },
-  { to: '/case-analysis', title: '案件分析', icon: BarChart2 },
-  { to: '/contract-review', title: '合同审查', icon: FileSearch }
+  { to: '/case-analysis', title: '案件分析', icon: BarChart2 }
 ];
 
 const pageTitle = computed(() => String(route.meta.title ?? '概览'));
@@ -245,6 +245,7 @@ const pageTitle = computed(() => String(route.meta.title ?? '概览'));
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
 .app-header {
@@ -274,6 +275,8 @@ const pageTitle = computed(() => String(route.meta.title ?? '概览'));
   flex-grow: 1;
   padding: 2rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 /* Page Transitions */

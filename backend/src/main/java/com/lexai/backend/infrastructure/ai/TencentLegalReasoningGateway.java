@@ -11,6 +11,7 @@ import com.lexai.backend.application.dto.response.ConsultationResponse;
 import com.lexai.backend.application.dto.response.ContractDraftResponse;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.ContractRiskItem;
+import com.lexai.backend.application.dto.response.RetrievalContext;
 import com.lexai.backend.application.port.out.LegalReasoningGateway;
 import com.lexai.backend.domain.model.RiskLevel;
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +29,7 @@ import org.springframework.stereotype.Component;
  * 说明：
  * 1) 当未配置腾讯大模型 endpoint 或调用失败时，会自动退化到“模板输出 + 检索结果”策略，保证系统可用。
  * 2) 得理接口解析字段可能因接口返回结构差异而失败，因此也做了多种兜底解析。
+ * 3) 合同审查支持二轮自检（ReAct 思想）：第一轮先出审查结论，第二轮自检后修正/精炼，再返回。
  */
 @Component
 @ConditionalOnProperty(name = "lexai.ai.mode", havingValue = "tencent")
@@ -37,19 +40,22 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
     private final LocalKnowledgeSearchClient localKnowledgeSearchClient;
     private final TencentLLMClient tencentLLMClient;
     private final ObjectMapper objectMapper;
+    private final boolean reviewSelfCheckEnabled;
 
     public TencentLegalReasoningGateway(
             DeliCaseSearchClient deliCaseSearchClient,
             DeliLegalSearchClient deliLegalSearchClient,
             LocalKnowledgeSearchClient localKnowledgeSearchClient,
             TencentLLMClient tencentLLMClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Value("${lexai.ai.review.self-check:true}") boolean reviewSelfCheckEnabled
     ) {
         this.deliCaseSearchClient = deliCaseSearchClient;
         this.deliLegalSearchClient = deliLegalSearchClient;
         this.localKnowledgeSearchClient = localKnowledgeSearchClient;
         this.tencentLLMClient = tencentLLMClient;
         this.objectMapper = objectMapper;
+        this.reviewSelfCheckEnabled = reviewSelfCheckEnabled;
     }
 
     @Override
@@ -68,7 +74,7 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
         if (llmText != null) {
             Optional<ConsultationResponse> parsed = tryParseConsultationResponse(llmText);
             if (parsed.isPresent()) {
-                return parsed.get();
+                return withRetrievalContext(parsed.get(), lawItems, caseItems, kbItems);
             }
         }
 
@@ -91,7 +97,26 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
                         "注意证据链完整性与关键事实时间线一致性，以降低举证风险。"
                 );
 
-        return new ConsultationResponse(category, legalBasis, recommendations, riskAlerts);
+        return new ConsultationResponse(
+                category,
+                legalBasis,
+                recommendations,
+                riskAlerts,
+                0.55,
+                buildRetrievalContext(lawItems, caseItems, kbItems),
+                buildFallbackAnswer(question, category, lawItems)
+        );
+    }
+
+    private static String buildFallbackAnswer(String question, String category, List<String> lawItems) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("根据你描述的情况，本问题主要属于「").append(category).append("」。");
+        if (lawItems != null && !lawItems.isEmpty()) {
+            sb.append("可参考下方检索到的相关法条与建议；").append("如果你希望我直接修改合同正文，请切换到右上角的「Agent 修改指令」模式。");
+        } else {
+            sb.append("当前未检索到强相关法条，建议补充更多事实细节再分析。");
+        }
+        return sb.toString();
     }
 
     @Override
@@ -108,7 +133,7 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
         if (llmText != null) {
             Optional<CaseAnalysisResponse> parsed = tryParseCaseAnalysisResponse(llmText);
             if (parsed.isPresent()) {
-                return parsed.get();
+                return withRetrievalContext(parsed.get(), List.of(), caseItems, kbItems);
             }
         }
 
@@ -133,7 +158,14 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
                 "必要时对关键事实开展进一步补证（取证/调证/申请鉴定）。"
         );
 
-        return new CaseAnalysisResponse(keyFacts, disputedIssues, evidenceGaps, suggestedActions);
+        return new CaseAnalysisResponse(
+                keyFacts,
+                disputedIssues,
+                evidenceGaps,
+                suggestedActions,
+                0.55,
+                buildRetrievalContext(List.of(), caseItems, kbItems)
+        );
     }
 
     @Override
@@ -149,12 +181,29 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
 
         String systemPrompt = CONTRACT_REVIEW_SYSTEM_PROMPT;
         String userPrompt = buildContractReviewUserPrompt(contractTitle, limitedContent, lawItems, kbItems);
+        String firstRoundText = tencentLLMClient.chat(systemPrompt, userPrompt);
 
-        String llmText = tencentLLMClient.chat(systemPrompt, userPrompt);
-        if (llmText != null) {
-            Optional<ContractReviewResponse> parsed = tryParseContractReviewResponse(llmText);
-            if (parsed.isPresent()) {
-                return parsed.get();
+        if (firstRoundText != null) {
+            Optional<ContractReviewResponse> firstParsed = tryParseContractReviewResponse(firstRoundText);
+            if (firstParsed.isPresent()) {
+                ContractReviewResponse firstRound = firstParsed.get();
+
+                // —— 第二轮：自检（ReAct）——
+                // 让模型对自己上一轮输出做一次复核：剔除幻觉、补齐遗漏、调整 confidence。
+                if (reviewSelfCheckEnabled) {
+                    String selfCheckPrompt = buildSelfCheckUserPrompt(
+                            contractTitle, limitedContent, lawItems, kbItems, firstRoundText
+                    );
+                    String secondRoundText = tencentLLMClient.chat(CONTRACT_REVIEW_SELF_CHECK_SYSTEM_PROMPT, selfCheckPrompt);
+                    if (secondRoundText != null) {
+                        Optional<ContractReviewResponse> secondParsed = tryParseContractReviewResponse(secondRoundText);
+                        if (secondParsed.isPresent()) {
+                            return withRetrievalContext(secondParsed.get(), lawItems, List.of(), kbItems);
+                        }
+                    }
+                }
+
+                return withRetrievalContext(firstRound, lawItems, List.of(), kbItems);
             }
         }
 
@@ -205,7 +254,9 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
         return new ContractReviewResponse(
                 risks,
                 missingClauses.isEmpty() ? List.of("暂未识别出明显缺失的核心条款；建议结合合同类型进一步核对。") : missingClauses,
-                "当前审查结果为“可用兜底”策略：已接入得理检索/本地知识库的上下文能力，但腾讯大模型调用未配置或解析失败时将使用规则化分析。"
+                "当前审查结果为“可用兜底”策略：已接入得理检索/本地知识库的上下文能力，但腾讯大模型调用未配置或解析失败时将使用规则化分析。",
+                0.5,
+                buildRetrievalContext(lawItems, List.of(), kbItems)
         );
     }
 
@@ -219,24 +270,41 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
         String duration = Optional.ofNullable(request.duration()).orElse("12个月").trim();
         String requirements = Optional.ofNullable(request.requirements()).orElse("详见双方另行商定的明细表").trim();
 
-        // 先尝试调用大模型生成合同
+        // —— 起草阶段 RAG：根据合同类型 + 核心需求检索法规和本地条款知识库 ——
+        String retrievalQuery = (contractType + " " + requirements).trim();
+        List<String> lawItems = safeCall(() -> deliLegalSearchClient.searchLaw(retrievalQuery, true), List.of());
+        List<String> kbItems = safeCall(() -> localKnowledgeSearchClient.searchTopK(retrievalQuery, 3), List.of());
+
+        // 调用大模型生成合同正文
         String systemPrompt = DRAFT_SYSTEM_PROMPT;
-        String userPrompt = buildDraftUserPrompt(contractName, contractType, partyA, partyB, amount, duration, requirements);
+        String userPrompt = buildDraftUserPrompt(
+                contractName, contractType, partyA, partyB, amount, duration, requirements,
+                lawItems, kbItems
+        );
         String llmText = tencentLLMClient.chat(systemPrompt, userPrompt);
-        if (llmText != null) {
-            Optional<ContractDraftResponse> parsed = tryParseDraftResponse(llmText);
-            if (parsed.isPresent()) {
-                return parsed.get();
-            }
+
+        if (llmText != null && !llmText.trim().isEmpty()) {
+            String summary = generateSummary(llmText);
+            return new ContractDraftResponse(
+                    contractName,
+                    llmText,
+                    summary,
+                    java.time.LocalDateTime.now(),
+                    lawItems.isEmpty() && kbItems.isEmpty() ? 0.7 : 0.85,
+                    buildRetrievalContext(lawItems, List.of(), kbItems)
+            );
         }
 
         // 兜底：用模板生成合同（与 Mock 逻辑一致）
         String generatedContent = generateContractTemplate(contractName, contractType, partyA, partyB, amount, duration, requirements);
-        
+
         return new ContractDraftResponse(
+                contractName,
                 generatedContent,
-                "已生成合同正文，请根据实际情况补充具体条款并进行法律审查。",
-                java.time.LocalDateTime.now()
+                "已生成合同正文（兜底模板），请根据实际情况补充具体条款并进行法律审查。",
+                java.time.LocalDateTime.now(),
+                0.5,
+                buildRetrievalContext(lawItems, List.of(), kbItems)
         );
     }
 
@@ -247,7 +315,9 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
             String partyB,
             Double amount,
             String duration,
-            String requirements
+            String requirements,
+            List<String> lawItems,
+            List<String> kbItems
     ) {
         return """
 # 合同基本信息：
@@ -259,9 +329,15 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
 合同期限：%s
 核心需求：%s
 
+# 检索到的法条（建议参考但不要硬抄，可为空）：
+%s
+
+# 本地条款知识库片段（合同条款样本/合规要点，可为空）：
+%s
+
 # 输出要求：
-生成一份完整的、符合中文法律文书规范的合同正文。
-合同应包含以下核心条款：
+请生成一份完整的、符合中文法律文书规范的合同正文。
+合同应包含以下核心条款，且条款表述应与“检索到的法条”及“本地条款知识库片段”保持一致：
 1. 合同主体与标的
 2. 服务内容与范围
 3. 服务期限
@@ -272,8 +348,8 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
 8. 争议解决
 9. 其他条款
 
-返回的合同内容必须是完整的正文，包括标题、签署日期、甲乙方签名处等。
-确保合同表述准确、专业、符合法律规范。
+请直接输出合同正文（不要输出 JSON、不要输出 Markdown 围栏），包括标题、签署日期、甲乙方签名处等。
+表述需准确、专业、符合法律规范，避免出现明显失衡条款（如单方解释权）。
 """.formatted(
                 contractName,
                 contractType,
@@ -281,29 +357,13 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
                 partyB,
                 amount,
                 duration,
-                requirements
+                requirements,
+                formatRagItems(lawItems, "L"),
+                formatRagItems(kbItems, "K")
         );
     }
 
-    private Optional<ContractDraftResponse> tryParseDraftResponse(String llmText) {
-        try {
-            // 合同内容通常是长文本，不是 JSON，所以直接返回
-            if (llmText != null && !llmText.trim().isEmpty()) {
-                String summary = generateSummary(llmText);
-                return Optional.of(new ContractDraftResponse(
-                        llmText,
-                        summary,
-                        java.time.LocalDateTime.now()
-                ));
-            }
-            return Optional.empty();
-        } catch (Exception ignore) {
-            return Optional.empty();
-        }
-    }
-
     private String generateSummary(String contractContent) {
-        // 简单的摘要生成：取前300字 + "..."
         if (contractContent == null) return "合同摘要：生成成功";
         String trimmed = contractContent.replaceAll("\\s+", " ").trim();
         if (trimmed.length() > 300) {
@@ -390,36 +450,36 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
 
     private String convertToChineseCurrency(Double amount) {
         if (amount == null || amount == 0) return "零";
-        
+
         long intPart = Math.round(amount);
         String[] units = {"", "十", "百", "千", "万", "十", "百", "千", "亿"};
         String[] digits = {"零", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
-        
+
         String intStr = String.valueOf(intPart);
         StringBuilder result = new StringBuilder();
         int len = intStr.length();
-        
+
         for (int i = 0; i < len; i++) {
             int digit = Character.getNumericValue(intStr.charAt(i));
             int unitIndex = len - i - 1;
-            
+
             if (digit == 0) {
                 if (unitIndex > 0 && unitIndex % 4 == 0) {
                     result.append("万");
                 }
                 continue;
             }
-            
+
             if (unitIndex % 4 == 0 && unitIndex > 0) {
                 result.append("万");
             }
-            
+
             result.append(digits[digit]);
             if (unitIndex % 4 > 0) {
                 result.append(units[unitIndex % 4]);
             }
         }
-        
+
         return result.toString();
     }
 
@@ -430,20 +490,39 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
 不要输出 JSON，而是输出完整的合同文本。
 """;
 
+    private static final String CITATION_PROTOCOL = """
+【强制引用协议（必须遵守）】
+- 你输出的 JSON 中，任何字符串数组的每一项、以及总结性字符串字段，
+  其末尾都必须以方括号引用形式收尾，且引用必须来自用户给出的 RAG 编号集合：
+    法条 → [L#]，类案 → [C#]，知识库 → [K#]
+- 若某项确实没有可对应的引用，必须显式追加 "[N/A]" 占位。
+- 一句话内可有多个引用，例如 "...建议补足合同主体条款[L1][K2]"。
+- 严禁编造未在用户上下文中出现过的编号（例如用户只给了 L1~L5，就不能写 [L7]）。
+- 上述规范不可省略，违反即视为错误输出。
+""";
+
     private static final String CONSULT_SYSTEM_PROMPT = """
 你是一名拥有15年执业经验的中国律师，擅长劳动法、合同法、侵权责任法。
-你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本）。
-""";
+你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本，不要使用 Markdown 围栏）。
+""" + CITATION_PROTOCOL;
 
     private static final String CASE_ANALYSIS_SYSTEM_PROMPT = """
 你是一名专业法律分析师，擅长梳理案件事实、识别争议焦点与证据缺口。
-你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本）。
-""";
+你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本，不要使用 Markdown 围栏）。
+""" + CITATION_PROTOCOL;
 
     private static final String CONTRACT_REVIEW_SYSTEM_PROMPT = """
 你是一名专业合同审查律师，能精准识别合同风险条款、缺失条款与不平衡条款。
-你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本）。
-""";
+你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本，不要使用 Markdown 围栏）。
+""" + CITATION_PROTOCOL;
+
+    private static final String CONTRACT_REVIEW_SELF_CHECK_SYSTEM_PROMPT = """
+你是一名极其严谨的合同审查首席审核官，专门复核同事给出的初步合同审查结论。
+你的任务是：基于原始合同内容、检索到的法条/知识库、以及同事的初稿 JSON，
+进行二次校验：剔除幻觉、补齐遗漏、调整 confidence、保证每条 risk/missingClause 都能在合同正文或法条中找到依据，
+并保证所有数组项末尾都带有正确的 [L#]/[K#]/[N/A] 引用收尾。
+你必须严格按照用户要求输出 JSON，且 JSON 可被解析（不要输出多余文本，不要使用 Markdown 围栏）。
+""" + CITATION_PROTOCOL;
 
     private String buildConsultUserPrompt(
             String question,
@@ -459,34 +538,69 @@ public class TencentLegalReasoningGateway implements LegalReasoningGateway {
 # 相关事实（可为空）：
 %s
 
-# 检索到的法条（可为空）：
+# 检索到的法条（编号 L1, L2 ...，可为空）：
 %s
 
-# 检索到的类案（可为空）：
+# 检索到的类案（编号 C1, C2 ...，可为空）：
 %s
 
-# 本地知识库片段（可为空）：
+# 本地知识库片段（编号 K1, K2 ...，可为空）：
 %s
+
+# 强制引用规范（极其重要，违反即视为错误输出）：
+- legalBasis / recommendations / riskAlerts 中**每一项**都必须在末尾追加至少一个引用标记，
+  来源于上面给出的 L#/C#/K# 编号集合，例如：
+    "《劳动合同法》第10条……[L1]"
+    "建议补充工资条作为证据…………[K2]"
+    "类案中法院支持双倍工资请求……[C3]"
+- 编号必须与上面提供的实际编号一致，禁止编造（如没有 L7 就不能写 [L7]）。
+- 若实在没有可引用的检索项，请使用 "[N/A]" 显式占位（不要省略）。
 
 # 输出要求：
-只输出 JSON，不要输出任何解释性文字。
+只输出 JSON，不要输出任何解释性文字，不要使用 Markdown 围栏。
 JSON 结构：
 {
   "category": "string",
+  "answer": "string",
   "legalBasis": ["string"],
   "recommendations": ["string"],
-  "riskAlerts": ["string"]
+  "riskAlerts": ["string"],
+  "confidence": 0.0
 }
 
-legalBasis 建议包含：法规名称 + 条款/条文 + 内容摘要。
-recommendations 建议包含：下一步行动建议。
-riskAlerts 建议包含：风险提示（时效/证据/适用条件等）。
+字段说明：
+- answer 是面向用户的"自然语言主回答"（120~280 字），用第二人称，
+  直接回答用户的问题、说清结论与最关键 1~2 个理由，可以在末尾带 [L#]/[C#]/[K#] 引用。
+- legalBasis 每一项必须包含：法规名称 + 条款 + 内容摘要 + 末尾追加 [L#] / [K#]。
+- recommendations 每一项给出可执行的下一步动作；末尾追加 [L#][C#][K#] 之一。
+- riskAlerts 每一项是 1 条风险提示；末尾追加 [L#][C#][K#] 之一（无可引用就 [N/A]）。
+- confidence 为 0.0~1.0 的浮点数，表示你对本次回答整体的可信度。
+- 严禁编造实际不存在的法条/案例编号。
+
+# 引用格式正确示例（仅作为格式示例，不要照抄内容）：
+{
+  "category": "劳动争议",
+  "answer": "你已工作满 6 个月但公司未签订书面劳动合同，依《劳动合同法》第 82 条，自第二个月起公司应当向你支付二倍工资，建议先固定工资流水/聊天记录等证据再申请劳动仲裁[L1][L2]。",
+  "legalBasis": [
+    "《劳动合同法》第十条规定建立劳动关系应当订立书面劳动合同[L1]",
+    "《劳动合同法》第八十二条规定未签书面合同应支付二倍工资[L2]"
+  ],
+  "recommendations": [
+    "立即固定微信聊天记录、考勤、工资流水等证据[K1]",
+    "向劳动监察大队投诉或申请劳动仲裁[L1][C1]"
+  ],
+  "riskAlerts": [
+    "二倍工资请求权适用1年时效，注意时效抗辩风险[L2]"
+  ],
+  "confidence": 0.85
+}
+（注意每个数组项末尾都带 [L#]/[C#]/[K#]，无可引用时用 [N/A]）
 """.formatted(
                 question,
                 facts.isEmpty() ? "[] " : facts,
-                lawItems.isEmpty() ? "[] " : lawItems,
-                caseItems.isEmpty() ? "[] " : caseItems,
-                kbItems.isEmpty() ? "[] " : kbItems
+                formatRagItems(lawItems, "L"),
+                formatRagItems(caseItems, "C"),
+                formatRagItems(kbItems, "K")
         );
     }
 
@@ -503,28 +617,37 @@ riskAlerts 建议包含：风险提示（时效/证据/适用条件等）。
 # 证据要点：
 %s
 
-# 检索到的类案（可为空）：
+# 检索到的类案（编号 C1, C2 ...，可为空）：
 %s
 
-# 本地知识库片段（可为空）：
+# 本地知识库片段（编号 K1, K2 ...，可为空）：
 %s
+
+# 强制引用规范（极其重要，违反即视为错误输出）：
+- keyFacts / disputeFocalPoints / evidenceGaps / actionRecommendations 中**每一项**
+  都必须在末尾追加至少一个引用标记 [C#] 或 [K#]（来源于上面提供的 C/K 编号集合）。
+- 没有可引用的检索项时，请显式追加 "[N/A]"。
+- 严禁编造不存在的编号（如没有 C9 就不能写 [C9]）。
 
 # 输出要求：
-只输出 JSON，不要输出任何解释性文字。
+只输出 JSON，不要输出任何解释性文字，不要使用 Markdown 围栏。
 JSON 结构（字段名必须严格一致，不要改名）：
 {
   "keyFacts": ["string"],
   "disputeFocalPoints": ["string"],
   "evidenceGaps": ["string"],
-  "actionRecommendations": ["string"]
+  "actionRecommendations": ["string"],
+  "confidence": 0.0
 }
 
-注意：不要输出除 JSON 外的任何内容；数组内每项为简短要点。
+字段说明：
+- 数组内每项为简短要点 + 末尾 [C#]/[K#]/[N/A]。
+- confidence 为 0.0~1.0 的浮点数，表示对当前案件分析的可信度。
 """.formatted(
                 caseSummary,
                 evidencePoints.isEmpty() ? "[] " : evidencePoints,
-                caseItems.isEmpty() ? "[] " : caseItems,
-                kbItems.isEmpty() ? "[] " : kbItems
+                formatRagItems(caseItems, "C"),
+                formatRagItems(kbItems, "K")
         );
     }
 
@@ -541,14 +664,20 @@ JSON 结构（字段名必须严格一致，不要改名）：
 # 合同正文（可能已截断）：
 %s
 
-# 检索到的法条（可为空）：
+# 检索到的法条（编号 L1, L2 ...，可为空）：
 %s
 
-# 本地知识库片段（可为空）：
+# 本地知识库片段（编号 K1, K2 ...，可为空）：
 %s
+
+# 强制引用规范（极其重要，违反即视为错误输出）：
+- 每条 risk.issue / risk.suggestion / missingClauses 项末尾**必须**追加至少一个
+  来源于上面 L/K 编号集合的引用标记，例如 "...[L1]" 或 "...[K2]"。
+- 没有可引用的检索项时，必须显式追加 "[N/A]"。
+- 严禁编造不存在的编号（如没有 L9 就不能写 [L9]）。
 
 # 输出要求：
-只输出 JSON，不要输出任何解释性文字。
+只输出 JSON，不要输出任何解释性文字，不要使用 Markdown 围栏。
 JSON 结构：
 {
   "risks": [
@@ -560,17 +689,98 @@ JSON 结构：
     }
   ],
   "missingClauses": ["string"],
-  "notes": "string"
+  "notes": "string",
+  "confidence": 0.0
 }
 
-risks 必须至少包含 1 条；missingClauses 必须至少包含 1 条（禁止输出空数组，无法判断就给最核心缺失项描述）。
-notes 用于总结审查结论与下一步建议。
+要求：
+- risks 必须至少包含 1 条；missingClauses 必须至少包含 1 条（禁止空数组）。
+- notes 用于总结审查结论与下一步建议（末尾也追加 [L#]/[K#]/[N/A]）。
+- confidence 为 0.0~1.0 的浮点数。
+- 严禁编造合同中实际不存在的条款；推断请在 issue 末尾追加 "[推断]"。
+
+# 引用格式正确示例（仅作为格式示例，不要照抄内容）：
+{
+  "risks": [
+    {
+      "level": "HIGH",
+      "clauseTitle": "单方解释权",
+      "issue": "本合同最终解释权归甲方所有，违反公平原则[L1]",
+      "suggestion": "改为双方协商解释或按法律规定处理[K1]"
+    }
+  ],
+  "missingClauses": [
+    "缺少违约责任条款[L2]",
+    "缺少争议解决条款[N/A]"
+  ],
+  "notes": "已识别 1 项高风险条款，2 项关键缺失条款，建议补充并复核[L1][K1]",
+  "confidence": 0.78
+}
+（注意每个数组项末尾都带 [L#]/[K#]/[N/A]）
 """.formatted(
                 contractTitle,
                 limitedContent,
-                lawItems.isEmpty() ? "[] " : lawItems,
-                kbItems.isEmpty() ? "[] " : kbItems
+                formatRagItems(lawItems, "L"),
+                formatRagItems(kbItems, "K")
         );
+    }
+
+    private String buildSelfCheckUserPrompt(
+            String contractTitle,
+            String limitedContent,
+            List<String> lawItems,
+            List<String> kbItems,
+            String firstRoundJson
+    ) {
+        return """
+# 合同标题：
+%s
+
+# 合同正文（可能已截断）：
+%s
+
+# 检索到的法条（编号 L1, L2 ...）：
+%s
+
+# 本地知识库片段（编号 K1, K2 ...）：
+%s
+
+# 同事第一轮审查 JSON（请你复核）：
+%s
+
+# 复核要求：
+请按下列步骤思考（不要输出思考过程）：
+1) 逐条检查 risks：合同正文是否真存在该条款或缺失？若纯属猜测，请删除该条或调整为 LOW 并加 "[推断]" 标注。
+2) 检查 missingClauses：是否真的缺失？已存在的项要剔除。
+3) 检查每项末尾的 [L#][K#] 引用编号是否真的对应检索结果，错的纠正、缺失的补上。
+4) 根据复核结果调整 confidence；若大量改动，confidence 应下调。
+5) 在 notes 中追加一句：“已完成二轮自检”。
+
+输出与原 JSON 完全相同的结构（risks / missingClauses / notes / confidence），不要输出任何额外文本，不要使用 Markdown 围栏。
+""".formatted(
+                contractTitle,
+                limitedContent,
+                formatRagItems(lawItems, "L"),
+                formatRagItems(kbItems, "K"),
+                firstRoundJson
+        );
+    }
+
+    /**
+     * 把 RAG 检索结果格式化为带编号的多行文本：
+     *   L1) 《劳动合同法》第10条 ...
+     *   L2) 《劳动法》第50条 ...
+     * 让大模型可以稳定按编号引用。
+     */
+    private static String formatRagItems(List<String> items, String prefix) {
+        if (items == null || items.isEmpty()) return "[] (无检索结果)";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < items.size(); i++) {
+            String raw = items.get(i) == null ? "" : items.get(i).trim();
+            if (raw.length() > 320) raw = raw.substring(0, 320) + "...";
+            sb.append(prefix).append(i + 1).append(") ").append(raw).append('\n');
+        }
+        return sb.toString();
     }
 
     private Optional<ConsultationResponse> tryParseConsultationResponse(String llmText) {
@@ -581,13 +791,18 @@ notes 用于总结审查结论与下一步建议。
             List<String> legalBasis = asTextArray(root, "legalBasis");
             List<String> recommendations = asTextArray(root, "recommendations");
             List<String> riskAlerts = asTextArray(root, "riskAlerts");
+            Double confidence = asDouble(root, "confidence");
 
             if (category == null) return Optional.empty();
+            String answer = asText(root, "answer");
             return Optional.of(new ConsultationResponse(
                     category,
                     legalBasis.isEmpty() ? List.of() : legalBasis,
                     recommendations.isEmpty() ? List.of() : recommendations,
-                    riskAlerts.isEmpty() ? List.of() : riskAlerts
+                    riskAlerts.isEmpty() ? List.of() : riskAlerts,
+                    confidence,
+                    buildRetrievalContext(List.of(), List.of(), List.of()),
+                    answer
             ));
         } catch (Exception ignore) {
             return Optional.empty();
@@ -613,6 +828,8 @@ notes 用于总结审查结论与下一步建议。
             if (actionRecommendations.isEmpty()) actionRecommendations = asTextArray(root, "suggestedActions");
             if (actionRecommendations.isEmpty()) actionRecommendations = asTextArray(root, "actionRecommendation");
 
+            Double confidence = asDouble(root, "confidence");
+
             if (keyFacts.isEmpty() && disputeFocalPoints.isEmpty() && evidenceGaps.isEmpty() && actionRecommendations.isEmpty()) {
                 return Optional.empty();
             }
@@ -620,7 +837,9 @@ notes 用于总结审查结论与下一步建议。
                     keyFacts,
                     disputeFocalPoints,
                     evidenceGaps,
-                    actionRecommendations
+                    actionRecommendations,
+                    confidence,
+                    buildRetrievalContext(List.of(), List.of(), List.of())
             ));
         } catch (Exception ignore) {
             return Optional.empty();
@@ -634,6 +853,7 @@ notes 用于总结审查结论与下一步建议。
             List<String> missingClauses = asTextArray(root, "missingClauses");
             String notes = asText(root, "notes");
             if (notes == null) notes = asText(root, "summary");
+            Double confidence = asDouble(root, "confidence");
 
             List<ContractRiskItem> risks = new ArrayList<>();
             JsonNode risksNode = root.get("risks");
@@ -665,11 +885,73 @@ notes 用于总结审查结论与下一步建议。
             return Optional.of(new ContractReviewResponse(
                     risks,
                     missingClauses.isEmpty() ? List.of("未明确识别出具体缺失条款；建议结合合同类型补齐关键条款") : missingClauses,
-                    notes == null ? "" : notes
+                    notes == null ? "" : notes,
+                    confidence,
+                    buildRetrievalContext(List.of(), List.of(), List.of())
             ));
         } catch (Exception ignore) {
             return Optional.empty();
         }
+    }
+
+    private static RetrievalContext buildRetrievalContext(
+            List<String> laws,
+            List<String> cases,
+            List<String> knowledge
+    ) {
+        return new RetrievalContext(
+                laws == null ? List.of() : laws,
+                cases == null ? List.of() : cases,
+                knowledge == null ? List.of() : knowledge
+        );
+    }
+
+    private static ConsultationResponse withRetrievalContext(
+            ConsultationResponse response,
+            List<String> laws,
+            List<String> cases,
+            List<String> knowledge
+    ) {
+        return new ConsultationResponse(
+                response.category(),
+                response.legalBasis(),
+                response.recommendations(),
+                response.riskAlerts(),
+                response.confidence(),
+                buildRetrievalContext(laws, cases, knowledge),
+                response.answer()
+        );
+    }
+
+    private static CaseAnalysisResponse withRetrievalContext(
+            CaseAnalysisResponse response,
+            List<String> laws,
+            List<String> cases,
+            List<String> knowledge
+    ) {
+        return new CaseAnalysisResponse(
+                response.keyFacts(),
+                response.disputedIssues(),
+                response.evidenceGaps(),
+                response.suggestedActions(),
+                response.confidence(),
+                buildRetrievalContext(laws, cases, knowledge)
+        );
+    }
+
+    private static ContractReviewResponse withRetrievalContext(
+            ContractReviewResponse response,
+            List<String> laws,
+            List<String> cases,
+            List<String> knowledge
+    ) {
+        return new ContractReviewResponse(
+                response.risks(),
+                response.missingClauses(),
+                response.summary(),
+                response.confidence(),
+                buildRetrievalContext(laws, cases, knowledge)
+        );
     }
 
     private static Optional<RiskLevel> parseRiskLevel(String levelText) {
@@ -723,6 +1005,18 @@ notes 用于总结审查结论与下一步建议。
         return out;
     }
 
+    private static Double asDouble(JsonNode node, String field) {
+        if (node == null) return null;
+        JsonNode v = node.get(field);
+        if (v == null || v.isNull()) return null;
+        if (v.isNumber()) return v.asDouble();
+        try {
+            return Double.parseDouble(v.asText().trim());
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
     private static <T> T safeCall(SupplierEx<T> supplier, T defaultValue) {
         try {
             T v = supplier.get();
@@ -737,4 +1031,3 @@ notes 用于总结审查结论与下一步建议。
         T get();
     }
 }
-

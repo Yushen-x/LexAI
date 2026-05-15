@@ -226,7 +226,7 @@ Write-Host "  +-----------------------------------------------+" -ForegroundColo
 Write-Host "  |                                               |" -ForegroundColor Cyan
 Write-Host "  |  Frontend:  http://localhost:$FRONTEND_PORT            |" -ForegroundColor Cyan
 Write-Host "  |  Backend:   http://localhost:$BACKEND_PORT/api         |" -ForegroundColor Cyan
-Write-Host "  |  H2 Console:http://localhost:$BACKEND_PORT/api/h2-console |" -ForegroundColor Cyan
+Write-Host "  |  Database:  MySQL / Configured via backend/.env |" -ForegroundColor Cyan
 Write-Host "  |                                               |" -ForegroundColor Cyan
 Write-Host "  |  To stop: close the Backend/Frontend windows  |" -ForegroundColor Cyan
 Write-Host "  |                                               |" -ForegroundColor Cyan

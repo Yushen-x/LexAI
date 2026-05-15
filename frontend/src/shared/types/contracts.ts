@@ -1,4 +1,4 @@
-import type { ApiResponse } from '@/shared/types/legal';
+import type { ApiResponse, ContractRiskItem } from '@/shared/types/legal';
 
 export type ContractStatus =
   | 'DRAFT'
@@ -16,10 +16,23 @@ export interface ContractItem {
   partyA: string;
   partyB: string;
   amount: number;
+  content: string;
   status: ContractStatus;
   source: string | null;
+  latestReview: ContractLatestReview | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ContractReviewDecision = 'PENDING_CONFIRMATION' | 'NEEDS_REVISION' | 'APPROVED';
+
+export interface ContractLatestReview {
+  summary: string;
+  risks: ContractRiskItem[];
+  missingClauses: string[];
+  reviewerOpinion: string;
+  reviewDecision: ContractReviewDecision;
+  reviewedAt: string | null;
 }
 
 export interface ContractListResult {

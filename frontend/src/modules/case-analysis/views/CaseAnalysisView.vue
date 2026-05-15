@@ -62,14 +62,28 @@
       </div>
 
       <!-- Result Section -->
-      <div class="card result-card" :class="{ 'bg-soft': !result }">
+      <div class="card result-card" :class="{ 'bg-soft': !result && !loading }">
+        <AiThinkingPanel
+          v-if="loading"
+          subtitle="腾讯混元 hunyuan-lite + 得理类案检索 + 本地 RAG 知识库"
+          :steps="[
+            '解析案情摘要与证据要点',
+            '调用得理类案检索（queryListCase）',
+            '本地知识库 TF-IDF 召回',
+            '混元大模型推理：争议焦点 / 证据缺口',
+            '结构化输出与覆盖率评估'
+          ]"
+        />
         <div v-if="result" class="result-content fade-in">
           <div class="card-header border-b pb-4 mb-6">
             <div>
               <h3 class="card-title">案件结构化画像</h3>
               <p class="text-muted text-sm mt-1">证据链完整度估算：<strong class="text-primary">{{ evidenceCoverage }}%</strong></p>
             </div>
-            <span class="badge badge-primary">画像完成</span>
+            <div class="flex gap-2 items-center">
+              <ConfidenceBadge :value="result.confidence" />
+              <span class="badge badge-primary">画像完成</span>
+            </div>
           </div>
 
           <!-- Summary Metric Row -->
@@ -93,21 +107,27 @@
             <div class="result-box">
               <h4 class="result-box-title text-primary">关键事实提取</h4>
               <ul class="clean-list">
-                <li v-for="item in result.keyFacts" :key="item">{{ item }}</li>
+                <li v-for="item in result.keyFacts" :key="item">
+                  <CitedText :text="item" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                </li>
               </ul>
             </div>
 
             <div class="result-box box-warning">
               <h4 class="result-box-title text-warning">核心争议焦点</h4>
               <ul class="clean-list">
-                <li v-for="item in result.disputedIssues" :key="item">{{ item }}</li>
+                <li v-for="item in result.disputedIssues" :key="item">
+                  <CitedText :text="item" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                </li>
               </ul>
             </div>
 
             <div class="result-box box-danger">
               <h4 class="result-box-title text-danger">证据缺口与薄弱点</h4>
               <ul class="clean-list">
-                <li v-for="item in result.evidenceGaps" :key="item">{{ item }}</li>
+                <li v-for="item in result.evidenceGaps" :key="item">
+                  <CitedText :text="item" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                </li>
               </ul>
             </div>
 
@@ -124,13 +144,43 @@
                 </button>
               </div>
               <ul class="clean-list">
-                <li v-for="item in result.suggestedActions" :key="item">{{ item }}</li>
+                <li v-for="item in result.suggestedActions" :key="item">
+                  <CitedText :text="item" :context="result.retrievalContext" @cite-click="onCiteClick" />
+                </li>
               </ul>
+            </div>
+          </div>
+
+          <AiTracePanel
+            class="mt-6"
+            :laws="[]"
+            :cases="result.retrievalContext?.cases ?? []"
+            :knowledge="result.retrievalContext?.knowledge ?? []"
+            :input-desc="form.caseSummary.slice(0, 40) + (form.caseSummary.length > 40 ? '…' : '')"
+          />
+
+          <div v-if="hasAnyRetrieval" class="mt-6">
+            <h4 class="result-box-title text-primary">检索原文（用于复核 · 点击 [C#][K#] 标签可定位）</h4>
+            <div class="rag-grid mt-3">
+              <RagSourceList
+                kind="case"
+                chip-prefix="C"
+                title-prefix="得理 · 类案检索"
+                :items="result.retrievalContext?.cases ?? []"
+                :highlighted-index="highlightCaseIdx"
+              />
+              <RagSourceList
+                kind="kb"
+                chip-prefix="K"
+                title-prefix="本地 RAG 知识库"
+                :items="result.retrievalContext?.knowledge ?? []"
+                :highlighted-index="highlightKbIdx"
+              />
             </div>
           </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-else-if="!loading" class="empty-state">
           <div class="empty-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           </div>
@@ -147,6 +197,11 @@ import { computed, reactive, ref } from 'vue';
 import { submitCaseAnalysis } from '@/shared/api/legal';
 import type { CaseAnalysisResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
+import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
+import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
+import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
+import CitedText from '@/shared/ui/CitedText.vue';
+import RagSourceList from '@/shared/ui/RagSourceList.vue';
 
 const form = reactive({
   caseSummary: '',
@@ -196,6 +251,20 @@ const evidenceCoverage = computed(() => {
   return Math.min(100, Math.round((present / denom) * 100));
 });
 
+const hasAnyRetrieval = computed(() => {
+  const r = result.value?.retrievalContext;
+  if (!r) return false;
+  return (r.cases?.length ?? 0) + (r.knowledge?.length ?? 0) > 0;
+});
+
+const highlightCaseIdx = ref<number | null>(null);
+const highlightKbIdx = ref<number | null>(null);
+
+function onCiteClick(seg: { kind: string; index: number }) {
+  if (seg.kind === 'case') highlightCaseIdx.value = seg.index - 1;
+  else if (seg.kind === 'kb') highlightKbIdx.value = seg.index - 1;
+}
+
 function applyPreset(preset: { summary: string; evidence: string[] }) {
   form.caseSummary = preset.summary;
   evidenceInput.value = preset.evidence.join('，');
@@ -215,6 +284,7 @@ async function copySuggestedActions() {
 }
 
 async function handleSubmit() {
+  result.value = null;
   loading.value = true;
   form.evidencePoints = normalizedEvidence.value;
 
@@ -223,6 +293,10 @@ async function handleSubmit() {
       caseSummary: form.caseSummary,
       evidencePoints: form.evidencePoints
     });
+  } catch (error) {
+    console.error('提交案件分析失败:', error);
+    result.value = null;
+    toast('案件分析失败，请稍后重试', 'error');
   } finally {
     loading.value = false;
   }
@@ -244,6 +318,7 @@ function resetForm() {
 
 .mb-6 { margin-bottom: 1.5rem; }
 .mt-6 { margin-top: 1.5rem; }
+.mt-3 { margin-top: 0.75rem; }
 .mr-1 { margin-right: 0.25rem; }
 .mr-2 { margin-right: 0.5rem; }
 .pb-4 { padding-bottom: 1rem; }
@@ -290,9 +365,31 @@ function resetForm() {
 
 .grid-layout {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 1.5rem;
   align-items: start;
+}
+.grid-layout > * { min-width: 0; }
+
+@media (min-width: 1024px) {
+  .input-card {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+.result-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.result-card :deep(pre),
+.result-card :deep(code) {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .card-header {
@@ -346,9 +443,10 @@ function resetForm() {
 
 .result-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
 }
+.result-grid > * { min-width: 0; }
 
 .result-box {
   background-color: var(--bg-app);
@@ -472,8 +570,20 @@ function resetForm() {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.rag-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+.rag-grid > * {
+  min-width: 0;
+}
+
 @media (max-width: 1024px) {
   .grid-layout {
+    grid-template-columns: 1fr;
+  }
+  .rag-grid {
     grid-template-columns: 1fr;
   }
 }

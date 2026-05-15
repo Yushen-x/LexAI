@@ -1,0 +1,17 @@
+[Unit]
+Description=LexAI Backend
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/lexai/backend
+EnvironmentFile=/opt/lexai/backend/lexai.env
+ExecStart=/usr/bin/java -jar /opt/lexai/backend/lexai-backend-0.1.0.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

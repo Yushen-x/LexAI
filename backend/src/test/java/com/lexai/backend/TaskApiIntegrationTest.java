@@ -60,10 +60,10 @@ class TaskApiIntegrationTest {
     void updateTaskStatus() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        // 用种子第 6 条（原 REJECTED），避免改坏 id=1 影响其它用例
+        // 用种子第 4 条（原 REJECTED），避免改坏 id=1 影响其它用例
         HttpEntity<String> entity = new HttpEntity<>("{\"status\":\"COMPLETED\"}", headers);
         ResponseEntity<String> res =
-                client().exchange("/tasks/6/status", HttpMethod.PUT, entity, String.class);
+                client().exchange("/tasks/4/status", HttpMethod.PUT, entity, String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).contains("COMPLETED");
     }

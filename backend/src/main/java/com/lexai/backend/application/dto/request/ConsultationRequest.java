@@ -6,7 +6,10 @@ import java.util.List;
 public record ConsultationRequest(
         @NotBlank(message = "question must not be blank")
         String question,
-        List<String> facts
+        List<String> facts,
+        Boolean createFollowUpTask
 ) {
+    public boolean shouldCreateFollowUpTask() {
+        return createFollowUpTask == null || createFollowUpTask;
+    }
 }
-

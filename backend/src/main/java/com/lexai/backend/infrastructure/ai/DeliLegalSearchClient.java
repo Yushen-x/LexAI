@@ -84,18 +84,33 @@ public class DeliLegalSearchClient {
     private List<String> extractLawItems(String body, int limit) {
         try {
             JsonNode root = objectMapper.readTree(body);
-            List<JsonNode> items = flattenArrayCandidates(root);
+            // 得理 queryListLaw 返回结构：{ success, code, body: { data: [ ... ] } }
+            JsonNode dataNode = root.path("body").path("data");
+            List<JsonNode> items = new ArrayList<>();
+            if (dataNode.isArray()) {
+                dataNode.forEach(items::add);
+            } else {
+                items = flattenArrayCandidates(root);
+            }
             if (items.isEmpty()) {
                 return List.of();
             }
             Set<String> dedup = new LinkedHashSet<>();
             for (JsonNode n : items) {
-                String law = firstText(n, "lawName", "regulationName", "title", "name");
-                String article = firstText(n, "article", "articleName", "articleNo", "number");
-                String content = firstText(n, "content", "text", "summary", "highlight");
-                String line = joinNonBlank(law, article, content);
+                String title = stripHtml(firstText(n,
+                        "title", "lawName", "regulationName", "name"));
+                String issuedNo = firstText(n, "issuedNo", "articleNo", "number");
+                String publisher = firstText(n, "publisherName", "publisher", "issuer");
+                String highlight = stripHtml(extractHighlight(n));
+                String fallbackContent = stripHtml(firstText(n,
+                        "content", "text", "summary"));
+                String content = !highlight.isBlank() ? highlight : fallbackContent;
+
+                String head = joinNonBlank(title, issuedNo);
+                String tail = joinNonBlank(publisher, content);
+                String line = joinNonBlank(head, tail);
                 if (!line.isBlank()) {
-                    dedup.add(line);
+                    dedup.add(truncate(line, 220));
                 }
                 if (dedup.size() >= limit) {
                     break;
@@ -105,6 +120,32 @@ public class DeliLegalSearchClient {
         } catch (Exception ignore) {
             return List.of();
         }
+    }
+
+    private static String extractHighlight(JsonNode n) {
+        JsonNode hl = n.get("highlights");
+        if (hl == null || !hl.isArray() || hl.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (JsonNode item : hl) {
+            String t = item.path("text").asText("");
+            if (!t.isBlank()) {
+                if (!sb.isEmpty()) sb.append(" / ");
+                sb.append(t.trim());
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String stripHtml(String s) {
+        if (s == null) return "";
+        return s.replaceAll("<[^>]+>", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max) + "…";
     }
 
     private static String joinNonBlank(String... parts) {

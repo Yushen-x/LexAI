@@ -57,7 +57,8 @@ public class TencentLLMClient {
                             Map.of("role", "system", "content", systemPrompt == null ? "" : systemPrompt),
                             Map.of("role", "user", "content", userPrompt == null ? "" : userPrompt)
                     ),
-                    "temperature", 0.2
+                    "temperature", 0.2,
+                    "max_tokens", 4096
             );
 
             HttpRequest.Builder builder = HttpRequest.newBuilder()
@@ -84,31 +85,36 @@ public class TencentLLMClient {
     private String extractText(String body) {
         try {
             JsonNode root = objectMapper.readTree(body);
-
-            // 常见 OpenAI 兼容结构: choices[0].message.content
             JsonNode content = root.path("choices").path(0).path("message").path("content");
             if (!content.isMissingNode() && !content.isNull() && !content.asText("").isBlank()) {
                 return content.asText();
             }
 
-            // 兼容其他结构: data.content / output.text / answer
             String[] candidates = {"answer", "content", "text"};
             for (String key : candidates) {
                 JsonNode node = root.get(key);
                 if (node != null && !node.isNull()) {
-                    String v = node.asText("");
-                    if (!v.isBlank()) return v;
+                    String value = node.asText("");
+                    if (!value.isBlank()) {
+                        return value;
+                    }
                 }
             }
+
             JsonNode outputText = root.path("output").path("text");
             if (!outputText.isMissingNode()) {
-                String v = outputText.asText("");
-                if (!v.isBlank()) return v;
+                String value = outputText.asText("");
+                if (!value.isBlank()) {
+                    return value;
+                }
             }
+
             JsonNode dataContent = root.path("data").path("content");
             if (!dataContent.isMissingNode()) {
-                String v = dataContent.asText("");
-                if (!v.isBlank()) return v;
+                String value = dataContent.asText("");
+                if (!value.isBlank()) {
+                    return value;
+                }
             }
             return null;
         } catch (Exception ignore) {

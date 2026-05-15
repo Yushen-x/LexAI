@@ -1,5 +1,12 @@
 import { http } from './http';
-import type { ApiContractItemResponse, ApiContractListResponse, ContractItem, ContractListResult, ContractStatus } from '@/shared/types/contracts';
+import type {
+  ApiContractItemResponse,
+  ApiContractListResponse,
+  ContractItem,
+  ContractListResult,
+  ContractReviewDecision,
+  ContractStatus
+} from '@/shared/types/contracts';
 
 export interface FetchContractsParams {
   keyword?: string;
@@ -12,11 +19,19 @@ export interface FetchContractsParams {
 export interface CreateContractRequest {
   name: string;
   contractType: string;
-  partyA: string;
-  partyB: string;
+  partyA?: string;
+  partyB?: string;
   amount?: number;
+  content?: string;
   source?: string;
   status?: ContractStatus;
+}
+
+export interface UpdateContractRequest extends CreateContractRequest {}
+
+export interface UpdateContractReviewRequest {
+  reviewerOpinion?: string;
+  reviewDecision?: ContractReviewDecision;
 }
 
 export async function fetchContracts(params: FetchContractsParams): Promise<ContractListResult> {
@@ -44,5 +59,15 @@ export async function updateContractStatus(id: number, status: ContractStatus): 
 
 export async function createContract(payload: CreateContractRequest): Promise<ContractItem> {
   const { data } = await http.post<ApiContractItemResponse>('/contracts', payload);
+  return data.data;
+}
+
+export async function updateContract(id: number, payload: UpdateContractRequest): Promise<ContractItem> {
+  const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}`, payload);
+  return data.data;
+}
+
+export async function updateContractReview(id: number, payload: UpdateContractReviewRequest): Promise<ContractItem> {
+  const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}/review`, payload);
   return data.data;
 }

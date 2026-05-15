@@ -23,7 +23,8 @@ class DataSqlSeedIntegrationTest {
     @Test
     void seedDataLoaded() {
         assertThat(contractRepository.count()).isEqualTo(8);
-        assertThat(taskRepository.count()).isEqualTo(6);
+        // 任务种子收敛为 4 条，统一为合同审查闭环示例。
+        assertThat(taskRepository.count()).isEqualTo(4);
         assertThat(contractRepository.findById(1L)).isPresent();
         assertThat(taskRepository.findByTaskNo("WF-2026-001")).isPresent();
     }

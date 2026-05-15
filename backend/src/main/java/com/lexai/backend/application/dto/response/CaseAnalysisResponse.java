@@ -6,7 +6,8 @@ public record CaseAnalysisResponse(
         List<String> keyFacts,
         List<String> disputedIssues,
         List<String> evidenceGaps,
-        List<String> suggestedActions
+        List<String> suggestedActions,
+        Double confidence,
+        RetrievalContext retrievalContext
 ) {
 }
-

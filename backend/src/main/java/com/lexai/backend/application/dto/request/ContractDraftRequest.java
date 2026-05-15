@@ -21,6 +21,11 @@ public record ContractDraftRequest(
 
         String duration,
 
-        String requirements
+        String requirements,
+
+        Boolean createFollowUpTask
 ) {
+    public boolean shouldCreateFollowUpTask() {
+        return createFollowUpTask == null || createFollowUpTask;
+    }
 }
