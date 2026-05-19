@@ -49,6 +49,22 @@
       </div>
     </div>
 
+    <!-- Statistics Bar -->
+    <div v-if="statistics" class="statistics-bar mb-4">
+      <div class="stat-card stat-card--total">
+        <span class="stat-label">合同总数</span>
+        <span class="stat-value">{{ statistics.total }}</span>
+      </div>
+      <div
+        v-for="item in statistics.statusDistribution"
+        :key="item.status"
+        class="stat-card"
+      >
+        <span class="stat-label">{{ statusLabelMap[item.status] ?? item.status }}</span>
+        <span class="stat-value">{{ item.count }}</span>
+      </div>
+    </div>
+
     <!-- Data Table Card -->
     <div class="card overflow-hidden">
       <div class="card-header pb-4 bg-app flex justify-between items-center">
@@ -252,7 +268,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchContracts, getContract, updateContractStatus } from '@/shared/api/contracts'
+import { fetchContracts, fetchContractStatistics, getContract, updateContractStatus } from '@/shared/api/contracts'
+import type { ContractStatsSummary } from '@/shared/api/contracts'
 import { CONTRACT_TYPE_VALUES } from '@/shared/constants/contractTypes'
 import type { ContractItem, ContractStatus } from '@/shared/types/contracts'
 
@@ -273,6 +290,24 @@ const totalElements = ref(0)
 const totalPages = ref(0)
 const rows = ref<ContractItem[]>([])
 const selectedContract = ref<ContractItem | null>(null)
+const statistics = ref<ContractStatsSummary | null>(null)
+
+const statusLabelMap: Record<string, string> = {
+  DRAFT: '草稿',
+  UNDER_REVIEW: '审查中',
+  SIGNED: '已签署',
+  IN_PROGRESS: '执行中',
+  COMPLETED: '已完成',
+  TERMINATED: '已终止',
+}
+
+async function loadStatistics(): Promise<void> {
+  try {
+    statistics.value = await fetchContractStatistics()
+  } catch {
+    // 统计数据加载失败不阻断主流程
+  }
+}
 
 const contractTypes = CONTRACT_TYPE_VALUES
 
@@ -629,6 +664,7 @@ onMounted(async () => {
   await syncRouteSelection()
   await loadList()
   await syncRouteSelection()
+  void loadStatistics()
 })
 </script>
 
@@ -1019,5 +1055,51 @@ onMounted(async () => {
   .detail-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.statistics-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-light, #e5e7eb);
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 88px;
+  transition: box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card--total {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+}
+
+.stat-card--total .stat-label,
+.stat-card--total .stat-value {
+  color: #fff;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-strong, #111827);
+  line-height: 1;
 }
 </style>

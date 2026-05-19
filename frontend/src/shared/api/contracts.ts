@@ -71,3 +71,15 @@ export async function updateContractReview(id: number, payload: UpdateContractRe
   const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}/review`, payload);
   return data.data;
 }
+
+export interface ContractStatsSummary {
+  total: number;
+  statusDistribution: { status: string; count: number }[];
+  typeDistribution: { type: string; count: number }[];
+  monthlyTrend: { year: number; month: number; count: number }[];
+}
+
+export async function fetchContractStatistics(): Promise<ContractStatsSummary> {
+  const { data } = await http.get<{ data: ContractStatsSummary }>('/contracts/statistics');
+  return data.data;
+}
