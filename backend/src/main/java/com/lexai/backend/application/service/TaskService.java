@@ -2,6 +2,7 @@ package com.lexai.backend.application.service;
 
 import com.lexai.backend.application.dto.task.TaskResponse;
 import com.lexai.backend.application.dto.task.UpdateTaskStatusRequest;
+import com.lexai.backend.application.service.support.SequenceGenerator;
 import com.lexai.backend.common.exception.ResourceNotFoundException;
 import com.lexai.backend.domain.model.WorkspaceTaskStatus;
 import com.lexai.backend.domain.model.WorkspaceTaskType;
@@ -29,6 +30,7 @@ public class TaskService {
 
     private static final EnumSet<WorkspaceTaskStatus> ACTIVE_STATUSES =
             EnumSet.of(WorkspaceTaskStatus.PENDING, WorkspaceTaskStatus.IN_PROGRESS);
+    private static final String TASK_NO_CODE = "WF";
 
     private final TaskRepository taskRepository;
     private final Object taskNoLock = new Object();
@@ -192,24 +194,12 @@ public class TaskService {
 
     private String nextTaskNo() {
         int year = Year.now().getValue();
-        String prefix = "WF-" + year + "-";
+        String prefix = SequenceGenerator.buildPrefix(TASK_NO_CODE, year);
         long sequence = taskRepository.findTopByTaskNoStartingWithOrderByTaskNoDesc(prefix)
                 .map(TaskEntity::getTaskNo)
-                .map(taskNo -> nextSequence(taskNo, prefix))
+                .map(taskNo -> SequenceGenerator.nextSequence(taskNo, prefix))
                 .orElse(1L);
-        return String.format("WF-%d-%03d", year, sequence);
-    }
-
-    private static long nextSequence(String currentNo, String prefix) {
-        if (currentNo == null || !currentNo.startsWith(prefix)) {
-            return 1L;
-        }
-        String suffix = currentNo.substring(prefix.length());
-        try {
-            return Long.parseLong(suffix) + 1;
-        } catch (NumberFormatException ignored) {
-            return 1L;
-        }
+        return SequenceGenerator.format(TASK_NO_CODE, year, sequence);
     }
 
     private TaskResponse toResponse(TaskEntity entity) {

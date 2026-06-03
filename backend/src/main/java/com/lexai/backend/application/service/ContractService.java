@@ -12,6 +12,7 @@ import com.lexai.backend.application.dto.contract.UpdateContractRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractStatusRequest;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.ContractRiskItem;
+import com.lexai.backend.application.service.support.SequenceGenerator;
 import com.lexai.backend.common.exception.ResourceNotFoundException;
 import com.lexai.backend.domain.model.ContractStatus;
 import com.lexai.backend.persistence.entity.ContractEntity;
@@ -37,6 +38,7 @@ public class ContractService {
     private static final String DEFAULT_SOURCE = "WORKSPACE_IMPORT";
     private static final String AI_DRAFT_SOURCE = "AI_DRAFT";
     private static final String DEFAULT_REVIEW_DECISION = "PENDING_CONFIRMATION";
+    private static final String CONTRACT_NO_CODE = "LX";
 
     private final ContractRepository contractRepository;
     private final ObjectMapper objectMapper;
@@ -231,24 +233,12 @@ public class ContractService {
 
     private String nextContractNo() {
         int year = Year.now().getValue();
-        String prefix = "LX-" + year + "-";
+        String prefix = SequenceGenerator.buildPrefix(CONTRACT_NO_CODE, year);
         long sequence = contractRepository.findTopByContractNoStartingWithOrderByContractNoDesc(prefix)
                 .map(ContractEntity::getContractNo)
-                .map(contractNo -> nextSequence(contractNo, prefix))
+                .map(contractNo -> SequenceGenerator.nextSequence(contractNo, prefix))
                 .orElse(1L);
-        return String.format("LX-%d-%03d", year, sequence);
-    }
-
-    private static long nextSequence(String currentNo, String prefix) {
-        if (currentNo == null || !currentNo.startsWith(prefix)) {
-            return 1L;
-        }
-        String suffix = currentNo.substring(prefix.length());
-        try {
-            return Long.parseLong(suffix) + 1;
-        } catch (NumberFormatException ignored) {
-            return 1L;
-        }
+        return SequenceGenerator.format(CONTRACT_NO_CODE, year, sequence);
     }
 
     private static String defaultText(String value) {
