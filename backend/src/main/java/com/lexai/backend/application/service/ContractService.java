@@ -14,6 +14,7 @@ import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.ContractRiskItem;
 import com.lexai.backend.application.service.support.SequenceGenerator;
 import com.lexai.backend.common.exception.ResourceNotFoundException;
+import com.lexai.backend.config.EvictContractStatsCaches;
 import com.lexai.backend.domain.model.ContractStatus;
 import com.lexai.backend.persistence.entity.ContractEntity;
 import com.lexai.backend.persistence.repository.ContractRepository;
@@ -100,6 +101,7 @@ public class ContractService {
         return toResponse(entity);
     }
 
+    @EvictContractStatsCaches
     @Transactional
     public ContractResponse create(CreateContractRequest request) {
         synchronized (contractNoLock) {
@@ -143,6 +145,7 @@ public class ContractService {
         }
     }
 
+    @EvictContractStatsCaches
     @Transactional
     public ContractResponse updateStatus(long id, UpdateContractStatusRequest request) {
         ContractEntity entity = contractRepository.findById(id)
@@ -170,6 +173,7 @@ public class ContractService {
         return toResponse(saved);
     }
 
+    @EvictContractStatsCaches
     @Transactional
     public ContractResponse update(long id, UpdateContractRequest request) {
         ContractEntity entity = contractRepository.findById(id)
@@ -186,6 +190,7 @@ public class ContractService {
         return toResponse(contractRepository.save(entity));
     }
 
+    @EvictContractStatsCaches
     @Transactional
     public ContractResponse saveAiReview(long id, ContractReviewResponse review) {
         ContractEntity entity = contractRepository.findById(id)
@@ -206,6 +211,7 @@ public class ContractService {
         return toResponse(contractRepository.save(entity));
     }
 
+    @EvictContractStatsCaches
     @Transactional
     public ContractResponse updateReview(long id, UpdateContractReviewRequest request) {
         ContractEntity entity = contractRepository.findById(id)
@@ -222,6 +228,7 @@ public class ContractService {
         return toResponse(saved);
     }
 
+    @EvictContractStatsCaches
     @Transactional
     public void softDelete(long id) {
         ContractEntity entity = contractRepository.findById(id)

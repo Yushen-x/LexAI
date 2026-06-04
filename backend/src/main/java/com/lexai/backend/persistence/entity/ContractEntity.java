@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -16,7 +17,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "contracts")
+@Table(name = "contracts", indexes = {
+        // 列表/统计均以 deleted 过滤，再按状态或类型聚合，故建复合索引覆盖这些查询
+        @Index(name = "idx_contract_deleted_status", columnList = "deleted, status"),
+        @Index(name = "idx_contract_deleted_type", columnList = "deleted, contract_type"),
+        // 月度趋势按 created_at 范围 + 分组
+        @Index(name = "idx_contract_deleted_created_at", columnList = "deleted, created_at")
+})
 public class ContractEntity {
 
     @Id
