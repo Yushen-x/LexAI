@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lexai.backend.application.dto.contract.ContractResponse;
 import com.lexai.backend.application.dto.contract.CreateContractRequest;
+import com.lexai.backend.application.dto.contract.UpdateContractRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractReviewRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractStatusRequest;
 import com.lexai.backend.application.dto.response.ContractReviewResponse;
@@ -31,6 +32,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 /**
  * {@link ContractService} 单元测试：Mockito 隔离仓储与联动的 TaskService，
@@ -223,5 +229,72 @@ class ContractServiceTest {
         ContractResponse res = contractService.saveAiReview(1L, review);
 
         assertThat(res.latestReview().risks()).hasSize(8);
+    }
+
+    @Test
+    @DisplayName("list：按更新时间倒序分页映射并回传分页元信息")
+    void list_mapsPageAndMeta() {
+        ContractEntity entity = contract(1, ContractStatus.DRAFT);
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<ContractEntity> page = new PageImpl<>(List.of(entity), pageable, 1);
+        when(contractRepository.findAll(
+                Mockito.<Specification<ContractEntity>>any(), Mockito.any(Pageable.class)))
+                .thenReturn(page);
+
+        var result = contractService.list("采购", ContractStatus.DRAFT, "采购", 0, 20);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).contractNo()).isEqualTo("LX-2026-001");
+        assertThat(result.totalElements()).isEqualTo(1);
+        assertThat(result.totalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("update：覆盖基础字段并落库")
+    void update_overwritesFields() {
+        ContractEntity entity = contract(1, ContractStatus.DRAFT);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(entity));
+
+        ContractResponse res = contractService.update(1L, new UpdateContractRequest(
+                "更名后的合同", "服务", "新甲方", "新乙方",
+                new BigDecimal("2000.00"), "新正文", "WORKSPACE_IMPORT", ContractStatus.DRAFT));
+
+        assertThat(res.name()).isEqualTo("更名后的合同");
+        assertThat(entity.getPartyA()).isEqualTo("新甲方");
+        assertThat(entity.getAmount()).isEqualByComparingTo("2000.00");
+    }
+
+    @Test
+    @DisplayName("create：AI 起草且已有同名草稿时复用，不生成新合同号")
+    void create_aiDraftReusesExistingDraft() {
+        ContractEntity existingDraft = contract(9, ContractStatus.DRAFT);
+        existingDraft.setContractNo("LX-2026-009");
+        when(contractRepository
+                .findTopByDeletedFalseAndSourceAndStatusAndNameAndContractTypeAndPartyAAndPartyBOrderByUpdatedAtDesc(
+                        eq("AI_DRAFT"), eq(ContractStatus.DRAFT), anyString(), anyString(),
+                        anyString(), anyString()))
+                .thenReturn(Optional.of(existingDraft));
+
+        ContractResponse res = contractService.create(new CreateContractRequest(
+                "AI 起草合同", "服务", "甲", "乙",
+                new BigDecimal("500.00"), "AI 正文", "AI_DRAFT", ContractStatus.DRAFT));
+
+        // 复用既有草稿，号码不变；不应再查下一个合同号
+        assertThat(res.contractNo()).isEqualTo("LX-2026-009");
+        verify(contractRepository, never())
+                .findTopByContractNoStartingWithOrderByContractNoDesc(anyString());
+    }
+
+    @Test
+    @DisplayName("updateStatus：DRAFT→TERMINATED 合法并联动待办")
+    void updateStatus_terminateFromDraft() {
+        ContractEntity entity = contract(1, ContractStatus.DRAFT);
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(entity));
+
+        ContractResponse res = contractService.updateStatus(
+                1L, new UpdateContractStatusRequest(ContractStatus.TERMINATED));
+
+        assertThat(res.status()).isEqualTo(ContractStatus.TERMINATED);
+        verify(taskService).closeContractReviewTaskOnContractStatus(1L, "TERMINATED");
     }
 }
