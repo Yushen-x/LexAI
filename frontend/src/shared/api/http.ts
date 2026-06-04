@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { toast } from '@/shared/ui/toast';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -7,6 +7,55 @@ export const http = axios.create({
   baseURL,
   timeout: 60000
 });
+
+/** 后端统一响应信封：{ code, message, data }。 */
+interface ApiEnvelope<T> {
+  code?: string;
+  message?: string;
+  data: T;
+}
+
+/**
+ * 同一时刻进行中的 GET 请求池，用于「在途去重」：
+ * 多个组件并发请求相同 URL+参数时，复用同一个 Promise，避免重复网络往返。
+ */
+const inFlightGets = new Map<string, Promise<unknown>>();
+
+function requestKey(url: string, params?: unknown): string {
+  return params === undefined ? url : `${url}?${JSON.stringify(params)}`;
+}
+
+/**
+ * 轻量 API 客户端：统一拆解响应信封（返回 `data.data`），消除各模块重复的 `.data.data` 样板；
+ * GET 默认做在途去重。写操作（post/put/del）不去重，避免吞掉用户的重复提交意图。
+ */
+export const api = {
+  get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const key = requestKey(url, config?.params);
+    const existing = inFlightGets.get(key) as Promise<T> | undefined;
+    if (existing) {
+      return existing;
+    }
+    const request = http
+      .get<ApiEnvelope<T>>(url, config)
+      .then((response) => response.data.data)
+      .finally(() => inFlightGets.delete(key));
+    inFlightGets.set(key, request);
+    return request;
+  },
+  async post<T>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    const response = await http.post<ApiEnvelope<T>>(url, body, config);
+    return response.data.data;
+  },
+  async put<T>(url: string, body?: unknown, config?: AxiosRequestConfig): Promise<T> {
+    const response = await http.put<ApiEnvelope<T>>(url, body, config);
+    return response.data.data;
+  },
+  async del<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await http.delete<ApiEnvelope<T>>(url, config);
+    return response.data.data;
+  }
+};
 
 // Response interceptor for error handling
 http.interceptors.response.use(

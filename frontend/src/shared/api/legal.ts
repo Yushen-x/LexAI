@@ -1,6 +1,5 @@
-import { http } from './http';
+import { api } from './http';
 import type {
-  ApiResponse,
   CaseAnalysisRequest,
   CaseAnalysisResponse,
   ConsultationRequest,
@@ -29,32 +28,26 @@ export interface ContractDraftResponse {
 }
 
 export async function fetchOverview() {
-  const { data } = await http.get<ApiResponse<PlatformOverview>>('/system/overview');
-  return data.data;
+  return api.get<PlatformOverview>('/system/overview');
 }
 
 export async function fetchHealth(): Promise<Record<string, string>> {
-  const { data } = await http.get<ApiResponse<Record<string, string>>>('/system/health');
-  return data.data;
+  return api.get<Record<string, string>>('/system/health');
 }
 
 export async function submitConsultation(payload: ConsultationRequest) {
-  const { data } = await http.post<ApiResponse<ConsultationResponse>>('/legal/consultation', payload);
-  return data.data;
+  return api.post<ConsultationResponse>('/legal/consultation', payload);
 }
 
 export async function submitCaseAnalysis(payload: CaseAnalysisRequest) {
-  const { data } = await http.post<ApiResponse<CaseAnalysisResponse>>('/legal/case-analysis', payload);
-  return data.data;
+  return api.post<CaseAnalysisResponse>('/legal/case-analysis', payload);
 }
 
 export async function submitContractReview(payload: ContractReviewRequest) {
-  const { data } = await http.post<ApiResponse<ContractReviewResponse>>('/legal/contract-review', payload);
-  return data.data;
+  return api.post<ContractReviewResponse>('/legal/contract-review', payload);
 }
 
 export async function submitContractDraft(payload: ContractDraftRequest) {
-  const { data } = await http.post<ApiResponse<ContractDraftResponse>>('/legal/contract-draft', payload);
-  return data.data;
+  return api.post<ContractDraftResponse>('/legal/contract-draft', payload);
 }
 

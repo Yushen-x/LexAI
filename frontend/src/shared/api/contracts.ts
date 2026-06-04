@@ -1,7 +1,5 @@
-import { http } from './http';
+import { api } from './http';
 import type {
-  ApiContractItemResponse,
-  ApiContractListResponse,
   ContractItem,
   ContractListResult,
   ContractReviewDecision,
@@ -35,7 +33,7 @@ export interface UpdateContractReviewRequest {
 }
 
 export async function fetchContracts(params: FetchContractsParams): Promise<ContractListResult> {
-  const { data } = await http.get<ApiContractListResponse>('/contracts', {
+  return api.get<ContractListResult>('/contracts', {
     params: {
       keyword: params.keyword || undefined,
       status: params.status || undefined,
@@ -44,32 +42,26 @@ export async function fetchContracts(params: FetchContractsParams): Promise<Cont
       size: params.size ?? 20
     }
   });
-  return data.data;
 }
 
 export async function getContract(id: number): Promise<ContractItem> {
-  const { data } = await http.get<ApiContractItemResponse>(`/contracts/${id}`);
-  return data.data;
+  return api.get<ContractItem>(`/contracts/${id}`);
 }
 
 export async function updateContractStatus(id: number, status: ContractStatus): Promise<ContractItem> {
-  const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}/status`, { status });
-  return data.data;
+  return api.put<ContractItem>(`/contracts/${id}/status`, { status });
 }
 
 export async function createContract(payload: CreateContractRequest): Promise<ContractItem> {
-  const { data } = await http.post<ApiContractItemResponse>('/contracts', payload);
-  return data.data;
+  return api.post<ContractItem>('/contracts', payload);
 }
 
 export async function updateContract(id: number, payload: UpdateContractRequest): Promise<ContractItem> {
-  const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}`, payload);
-  return data.data;
+  return api.put<ContractItem>(`/contracts/${id}`, payload);
 }
 
 export async function updateContractReview(id: number, payload: UpdateContractReviewRequest): Promise<ContractItem> {
-  const { data } = await http.put<ApiContractItemResponse>(`/contracts/${id}/review`, payload);
-  return data.data;
+  return api.put<ContractItem>(`/contracts/${id}/review`, payload);
 }
 
 export interface ContractStatsSummary {
@@ -80,6 +72,5 @@ export interface ContractStatsSummary {
 }
 
 export async function fetchContractStatistics(): Promise<ContractStatsSummary> {
-  const { data } = await http.get<{ data: ContractStatsSummary }>('/contracts/statistics');
-  return data.data;
+  return api.get<ContractStatsSummary>('/contracts/statistics');
 }
