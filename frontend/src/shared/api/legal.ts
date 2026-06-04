@@ -6,7 +6,12 @@ import type {
   ConsultationResponse,
   ContractReviewRequest,
   ContractReviewResponse,
-  PlatformOverview
+  LegalScenarioType,
+  LegalSessionDetail,
+  LegalSessionListResult,
+  LegalSessionSummary,
+  PlatformOverview,
+  SystemHealth
 } from '@/shared/types/legal';
 
 export interface ContractDraftRequest {
@@ -31,8 +36,34 @@ export async function fetchOverview() {
   return api.get<PlatformOverview>('/system/overview');
 }
 
-export async function fetchHealth(): Promise<Record<string, string>> {
-  return api.get<Record<string, string>>('/system/health');
+export async function fetchHealth(): Promise<SystemHealth> {
+  return api.get<SystemHealth>('/system/health');
+}
+
+export async function fetchLegalSessions(
+  type: LegalScenarioType,
+  page = 0,
+  size = 20,
+  keyword?: string
+): Promise<LegalSessionListResult> {
+  return api.get<LegalSessionListResult>('/legal/sessions', {
+    params: {
+      type,
+      page,
+      size,
+      keyword: keyword?.trim() || undefined
+    }
+  });
+}
+
+export async function fetchRecentLegalSessions(limit = 5): Promise<LegalSessionSummary[]> {
+  return api.get<LegalSessionSummary[]>('/legal/sessions/recent', {
+    params: { limit }
+  });
+}
+
+export async function fetchLegalSessionDetail(id: number): Promise<LegalSessionDetail> {
+  return api.get<LegalSessionDetail>(`/legal/sessions/${id}`);
 }
 
 export async function submitConsultation(payload: ConsultationRequest) {

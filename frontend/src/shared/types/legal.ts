@@ -91,3 +91,39 @@ export interface ContractDraftResponse {
   retrievalContext?: RetrievalContext;
 }
 
+export type LegalScenarioType = 'CONSULTATION' | 'CASE_ANALYSIS' | 'CONTRACT_REVIEW';
+
+export interface LegalSessionSummary {
+  id: number;
+  sessionNo: string;
+  scenarioType: LegalScenarioType;
+  title: string;
+  confidence?: number | null;
+  traceId?: string | null;
+  createdAt: string;
+}
+
+export interface LegalSessionDetail extends LegalSessionSummary {
+  inputPayload: string;
+  outputPayload: string;
+  initiator: string;
+}
+
+export interface LegalSessionListResult {
+  content: LegalSessionSummary[];
+  totalElements: number;
+  totalPages: number;
+  page: number;
+  size: number;
+}
+
+export interface SystemHealth {
+  status: string;
+  aiMode: string;
+  database: string;
+  knowledgeDocumentCount: number;
+  knowledgeChunkCount: number;
+  consultationSessionCount: number;
+  caseAnalysisSessionCount: number;
+}
+

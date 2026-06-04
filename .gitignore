@@ -11,6 +11,7 @@ backend/target/
 backend/.m2/
 backend/.m2repo/
 backend/data/
+.lexai/
 *.log
 
 .env
