@@ -32,6 +32,11 @@ management:
       exposure:
         include: health,info
 
+logging:
+  pattern:
+    # 在日志级别后附带请求关联 ID（traceId），便于串联单次请求内的多步调用
+    level: "%5p [%X{traceId:-}]"
+
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}

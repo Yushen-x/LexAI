@@ -17,6 +17,19 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // 将体积较大的第三方依赖拆为独立 vendor chunk，利用浏览器长缓存、
+        // 避免业务代码改动导致整包失效
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-axios': ['axios'],
+          'vendor-icons': ['lucide-vue-next']
+        }
+      }
+    }
   }
 });
 

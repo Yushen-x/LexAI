@@ -67,10 +67,47 @@ npm run dev
 - `GET/PUT/DELETE /api/contracts/{id}` — 合同详情、状态更新、软删除
 - `GET /api/tasks` — 待办任务列表
 - `PUT /api/tasks/{id}/status` — 更新任务状态
+- `GET /api/contracts/statistics` — 合同统计概览（总数 / 状态分布 / 类型分布 / 月度趋势）
+- `GET /api/contracts/statistics/{status|type|trend}` — 单项统计
+
+> 所有响应均带 `X-Request-Id` 关联 ID（可由调用方透传），便于日志追踪。
+
+## 性能优化与可观测性
+
+- **合同统计缓存**：统计接口经 Spring Cache + Caffeine 缓存（60s TTL），合同增改删审时
+  通过 `@EvictContractStatsCaches` 主动失效，兼顾时效与一致性。
+- **知识库检索**：`LocalKnowledgeSearchClient` 以词项倒排索引预筛候选 chunk，仅对与查询
+  有交集者计算余弦相似度（结果不变、计算量下降），并对 `(query, topK)` 做 LRU 结果缓存。
+- **业务流水号**：合同号/任务号生成统一收敛到 `SequenceGenerator`，消除重复逻辑。
+- **数据库索引**：`contracts` 表针对统计访问路径补充 `(deleted,status)`/`(deleted,contract_type)`/
+  `(deleted,created_at)` 复合索引。
+- **请求追踪**：`RequestCorrelationFilter` 为每个请求绑定 `traceId` 写入 MDC，日志含 `[traceId]`。
+- **前端**：路由级懒加载 + `vendor` 分包；统一 API 客户端对 GET 做在途去重。
+
+详见 **[docs/性能优化与测试.md](docs/性能优化与测试.md)**。
+
+## 测试与覆盖率
+
+后端使用 JUnit 5 + Mockito，含单元测试与 Spring 集成测试：
+
+```bash
+cd backend
+mvn test
+```
+
+测试通过后，JaCoCo 覆盖率报告生成在 `backend/target/site/jacoco/index.html`。
+
+前端类型检查与构建：
+
+```bash
+cd frontend
+npm run build
+```
 
 ## 相关文档
 
 - `docs/后端本地启动与API环境配置.md`：后端环境变量与分步启动（傻瓜模式）
+- `docs/性能优化与测试.md`：系统优化项、缓存/索引策略与测试说明
 - `docs/ARCHITECTURE.md`：工程架构说明
 - `docs/ProjectCharter.md`：英文项目章程
 - `docs/ProjectCharter.zh.md`：中文项目章程
