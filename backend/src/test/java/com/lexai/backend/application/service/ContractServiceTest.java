@@ -48,13 +48,20 @@ class ContractServiceTest {
 
     private ContractRepository contractRepository;
     private TaskService taskService;
+    private ContractReviewRecordService reviewRecordService;
     private ContractService contractService;
 
     @BeforeEach
     void setUp() {
         contractRepository = Mockito.mock(ContractRepository.class);
         taskService = Mockito.mock(TaskService.class);
-        contractService = new ContractService(contractRepository, new ObjectMapper(), taskService);
+        reviewRecordService = Mockito.mock(ContractReviewRecordService.class);
+        contractService = new ContractService(
+                contractRepository,
+                new ObjectMapper(),
+                taskService,
+                reviewRecordService
+        );
         when(contractRepository.save(any(ContractEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -185,6 +192,7 @@ class ContractServiceTest {
         assertThat(entity.getReviewedAt()).isNotNull();
         assertThat(res.latestReview()).isNotNull();
         assertThat(res.latestReview().risks()).hasSize(1);
+        verify(reviewRecordService).recordAiReview(entity, review);
     }
 
     @Test
@@ -199,6 +207,7 @@ class ContractServiceTest {
         assertThat(entity.getReviewDecision()).isEqualTo("APPROVED");
         assertThat(entity.getReviewedAt()).isNotNull();
         assertThat(res.latestReview().reviewerOpinion()).isEqualTo("同意签署");
+        verify(reviewRecordService).syncLatestManualReview(1L, "APPROVED", "同意签署");
         verify(taskService).resolveContractReviewTask(1L, "APPROVED");
     }
 

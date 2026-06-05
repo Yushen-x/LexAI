@@ -2,6 +2,8 @@ package com.lexai.backend;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +27,9 @@ class ContractApiIntegrationTest {
 
     @Autowired
     private RestTemplateBuilder restTemplateBuilder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private TestRestTemplate client() {
         return new TestRestTemplate(restTemplateBuilder.rootUri("http://localhost:" + port + "/api"));
@@ -90,5 +95,42 @@ class ContractApiIntegrationTest {
         assertThat(updateRes.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(updateRes.getBody()).contains("人工确认违约责任需补充业务背景");
         assertThat(updateRes.getBody()).contains("NEEDS_REVISION");
+    }
+
+    @Test
+    void contractReview_createsReviewHistoryRecord() throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String body = """
+                {
+                  "contractTitle":"软件定制开发合同复审",
+                  "contractContent":"合同未明确验收标准、知识产权归属和争议解决条款。",
+                  "contractId":8,
+                  "createFollowUpTask":false
+                }
+                """;
+
+        ResponseEntity<String> reviewRes = client().postForEntity(
+                "/legal/contract-review",
+                new HttpEntity<>(body, headers),
+                String.class
+        );
+        assertThat(reviewRes.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> listRes = client().getForEntity("/contracts/8/reviews", String.class);
+        assertThat(listRes.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(listRes.getBody()).contains("PENDING_CONFIRMATION");
+        assertThat(listRes.getBody()).contains("riskCount");
+
+        JsonNode first = objectMapper.readTree(listRes.getBody()).path("data").get(0);
+        long reviewId = first.path("id").asLong();
+
+        ResponseEntity<String> detailRes = client().getForEntity(
+                "/contracts/8/reviews/" + reviewId,
+                String.class
+        );
+        assertThat(detailRes.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(detailRes.getBody()).contains("missingClauses");
+        assertThat(detailRes.getBody()).contains("risks");
     }
 }
