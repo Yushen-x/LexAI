@@ -1,6 +1,6 @@
 import type { ApiResponse } from '@/shared/types/legal';
 
-export type WorkspaceTaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+export type WorkspaceTaskStatus = 'PENDING' | 'IN_PROGRESS' | 'SUPERSEDED' | 'COMPLETED' | 'REJECTED';
 
 export type WorkspaceTaskType =
   | 'LEGAL_CONSULTATION'

@@ -26,6 +26,7 @@ import com.lexai.backend.persistence.repository.ContractRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.Year;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
@@ -296,5 +298,31 @@ class ContractServiceTest {
 
         assertThat(res.status()).isEqualTo(ContractStatus.TERMINATED);
         verify(taskService).closeContractReviewTaskOnContractStatus(1L, "TERMINATED");
+    }
+
+    @Test
+    @DisplayName("exportCsv：按列表筛选导出 UTF-8 CSV 并转义逗号、引号与换行")
+    void exportCsv_appliesListFiltersAndEscapesCells() {
+        ContractEntity entity = contract(1, ContractStatus.UNDER_REVIEW);
+        entity.setName("服务,采购\"混合\"合同");
+        entity.setPartyA("甲方\n分公司");
+        entity.setReviewDecision("approved");
+        entity.setCreatedAt(Instant.parse("2026-06-01T01:02:03Z"));
+        entity.setUpdatedAt(Instant.parse("2026-06-02T03:04:05Z"));
+        when(contractRepository.findAll(
+                Mockito.<Specification<ContractEntity>>any(), Mockito.any(Sort.class)))
+                .thenReturn(List.of(entity));
+
+        byte[] csvBytes = contractService.exportCsv("服务", ContractStatus.UNDER_REVIEW, "采购");
+        String csv = new String(csvBytes, StandardCharsets.UTF_8);
+
+        assertThat(csv).startsWith("\uFEFF合同编号,合同名称,合同类型");
+        assertThat(csv).contains("\"LX-2026-001\",\"服务,采购\"\"混合\"\"合同\"");
+        assertThat(csv).contains("\"甲方\n分公司\"");
+        assertThat(csv).contains("\"APPROVED\"");
+        verify(contractRepository).findAll(
+                Mockito.<Specification<ContractEntity>>any(),
+                eq(Sort.by(Sort.Direction.DESC, "updatedAt"))
+        );
     }
 }

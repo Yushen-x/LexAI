@@ -21,11 +21,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /**
- * {@link TaskService} 单元测试：用 Mockito 隔离仓储，聚焦待办去重、状态联动闭环等业务规则。
+ * {@link TaskService} 单元测试：用 Mockito 隔离仓储，聚焦审查记录生成、状态联动闭环等业务规则。
  */
 class TaskServiceTest {
 
@@ -93,25 +92,30 @@ class TaskServiceTest {
     }
 
     @Test
-    @DisplayName("已有活跃审查待办时复用并刷新标题，不新建任务号")
-    void createOrReuse_reusesActiveTask() {
+    @DisplayName("已有活跃审查记录时置为已覆盖，并为本次申请新建 PENDING 记录")
+    void createContractReviewTask_supersedesActiveTaskAndCreatesNewOne() {
         TaskEntity active = activeReviewTask(7, WorkspaceTaskStatus.PENDING);
         when(taskRepository.findByTypeAndRelatedIdAndStatusInOrderByCreatedAtDesc(
                 eq(WorkspaceTaskType.CONTRACT_REVIEW), eq("100"), any()))
                 .thenReturn(List.of(active));
+        TaskEntity last = activeReviewTask(9, WorkspaceTaskStatus.COMPLETED);
+        last.setTaskNo("WF-2026-009");
+        when(taskRepository.findTopByTaskNoStartingWithOrderByTaskNoDesc(anyString()))
+                .thenReturn(Optional.of(last));
 
-        TaskResponse res = taskService.createOrReuseContractReviewTask(
+        TaskResponse res = taskService.createContractReviewTask(
                 100L, "LX-2026-001", "采购合同", "alice");
 
-        assertThat(res.taskNo()).isEqualTo("WF-2026-007");
-        assertThat(active.getTitle()).contains("LX-2026-001").contains("采购合同");
-        // 复用路径不应去查下一个任务号
-        verify(taskRepository, never()).findTopByTaskNoStartingWithOrderByTaskNoDesc(anyString());
+        assertThat(active.getStatus()).isEqualTo(WorkspaceTaskStatus.SUPERSEDED);
+        assertThat(res.taskNo()).isEqualTo("WF-2026-010");
+        assertThat(res.title()).contains("LX-2026-001").contains("采购合同");
+        assertThat(res.status()).isEqualTo(WorkspaceTaskStatus.PENDING);
+        verify(taskRepository).saveAll(List.of(active));
     }
 
     @Test
     @DisplayName("无活跃待办时新建 PENDING 任务并生成顺延任务号")
-    void createOrReuse_createsNewWithNextNo() {
+    void createContractReviewTask_createsNewWithNextNo() {
         when(taskRepository.findByTypeAndRelatedIdAndStatusInOrderByCreatedAtDesc(
                 eq(WorkspaceTaskType.CONTRACT_REVIEW), eq("100"), any()))
                 .thenReturn(List.of());
@@ -120,7 +124,7 @@ class TaskServiceTest {
         when(taskRepository.findTopByTaskNoStartingWithOrderByTaskNoDesc(anyString()))
                 .thenReturn(Optional.of(last));
 
-        TaskResponse res = taskService.createOrReuseContractReviewTask(
+        TaskResponse res = taskService.createContractReviewTask(
                 100L, "LX-2026-001", "采购合同", "alice");
 
         assertThat(res.status()).isEqualTo(WorkspaceTaskStatus.PENDING);
@@ -129,19 +133,22 @@ class TaskServiceTest {
     }
 
     @Test
-    @DisplayName("resolveContractReviewTask：APPROVED→COMPLETED，NEEDS_REVISION→REJECTED")
-    void resolve_mapsDecisionToTerminalStatus() {
-        TaskEntity active = activeReviewTask(1, WorkspaceTaskStatus.PENDING);
+    @DisplayName("resolveContractReviewTask：只处理最新活跃记录，APPROVED→COMPLETED，NEEDS_REVISION→REJECTED")
+    void resolve_mapsDecisionToTerminalStatusOnLatestActiveTask() {
+        TaskEntity latest = activeReviewTask(2, WorkspaceTaskStatus.PENDING);
+        TaskEntity older = activeReviewTask(1, WorkspaceTaskStatus.IN_PROGRESS);
         when(taskRepository.findByTypeAndRelatedIdAndStatusInOrderByCreatedAtDesc(
                 eq(WorkspaceTaskType.CONTRACT_REVIEW), eq("100"), any()))
-                .thenReturn(List.of(active));
+                .thenReturn(List.of(latest, older));
 
         taskService.resolveContractReviewTask(100L, "approved");
-        assertThat(active.getStatus()).isEqualTo(WorkspaceTaskStatus.COMPLETED);
+        assertThat(latest.getStatus()).isEqualTo(WorkspaceTaskStatus.COMPLETED);
+        assertThat(older.getStatus()).isEqualTo(WorkspaceTaskStatus.IN_PROGRESS);
 
-        active.setStatus(WorkspaceTaskStatus.PENDING);
+        latest.setStatus(WorkspaceTaskStatus.PENDING);
         taskService.resolveContractReviewTask(100L, "NEEDS_REVISION");
-        assertThat(active.getStatus()).isEqualTo(WorkspaceTaskStatus.REJECTED);
+        assertThat(latest.getStatus()).isEqualTo(WorkspaceTaskStatus.REJECTED);
+        verify(taskRepository, Mockito.times(2)).save(latest);
     }
 
     @Test
@@ -152,7 +159,7 @@ class TaskServiceTest {
 
         verify(taskRepository, never())
                 .findByTypeAndRelatedIdAndStatusInOrderByCreatedAtDesc(any(), any(), any());
-        verify(taskRepository, never()).saveAll(any());
+        verify(taskRepository, never()).save(any());
     }
 
     @Test
@@ -167,8 +174,7 @@ class TaskServiceTest {
         assertThat(active.getStatus()).isEqualTo(WorkspaceTaskStatus.COMPLETED);
 
         taskService.closeContractReviewTaskOnContractStatus(100L, "DRAFT");
-        // DRAFT 不触发查询/保存
-        ArgumentCaptor<List<TaskEntity>> captor = ArgumentCaptor.forClass(List.class);
-        verify(taskRepository, Mockito.atMostOnce()).saveAll(captor.capture());
+        // DRAFT 不触发额外保存
+        verify(taskRepository, Mockito.times(1)).save(active);
     }
 }

@@ -21,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>设计取舍：</p>
  * <ul>
  *   <li>仅围绕「合同审查」生成可执行待办——法律咨询、案件分析、合同起草属于查询/工具操作，不再产生待办。</li>
- *   <li>同一合同的活跃审查待办做去重，避免重复审查反复刷出新任务。</li>
- *   <li>合同状态/审查决策变化时联动关闭或驳回对应待办，形成闭环。</li>
+ *   <li>同一合同每次发起审查都保留一条流程记录，新的申请会覆盖旧的活跃记录。</li>
+ *   <li>合同状态/审查决策变化时联动关闭或驳回最新活跃记录，形成闭环。</li>
  * </ul>
  */
 @Service
@@ -64,11 +64,11 @@ public class TaskService {
     }
 
     /**
-     * 为合同审查创建或复用一条「待人工确认」待办。同一合同已有未结束的审查任务时，
-     * 仅刷新标题并保留原 PENDING/IN_PROGRESS 状态，避免重复推送。
+     * 为合同审查创建一条「待人工确认」流程记录。同一合同已有未结束记录时，
+     * 先将旧记录标记为已覆盖，再保留本次申请的新记录。
      */
     @Transactional
-    public TaskResponse createOrReuseContractReviewTask(
+    public TaskResponse createContractReviewTask(
             long contractId,
             String contractNo,
             String contractName,
@@ -77,12 +77,7 @@ public class TaskService {
         String relatedId = String.valueOf(contractId);
         String title = buildContractReviewTitle("合同审查待人工确认", contractNo, contractName);
 
-        Optional<TaskEntity> active = findActiveContractReviewTask(relatedId);
-        if (active.isPresent()) {
-            TaskEntity entity = active.get();
-            entity.setTitle(title);
-            return toResponse(taskRepository.save(entity));
-        }
+        markActiveContractReviewTasksSuperseded(relatedId);
 
         synchronized (taskNoLock) {
             return create(
@@ -118,7 +113,7 @@ public class TaskService {
         if (target == null) {
             return;
         }
-        applyToActiveContractReviewTasks(contractId, target);
+        applyToLatestActiveContractReviewTask(contractId, target);
     }
 
     /**
@@ -132,7 +127,7 @@ public class TaskService {
         }
         switch (contractStatus) {
             case "SIGNED", "IN_PROGRESS", "COMPLETED", "TERMINATED" ->
-                    applyToActiveContractReviewTasks(contractId, WorkspaceTaskStatus.COMPLETED);
+                    applyToLatestActiveContractReviewTask(contractId, WorkspaceTaskStatus.COMPLETED);
             default -> {
                 // DRAFT / UNDER_REVIEW 仍是审查阶段，不关闭。
             }
@@ -158,8 +153,7 @@ public class TaskService {
         return toResponse(taskRepository.save(entity));
     }
 
-    private void applyToActiveContractReviewTasks(long contractId, WorkspaceTaskStatus target) {
-        String relatedId = String.valueOf(contractId);
+    private void markActiveContractReviewTasksSuperseded(String relatedId) {
         List<TaskEntity> active = taskRepository
                 .findByTypeAndRelatedIdAndStatusInOrderByCreatedAtDesc(
                         WorkspaceTaskType.CONTRACT_REVIEW, relatedId, ACTIVE_STATUSES);
@@ -167,9 +161,17 @@ public class TaskService {
             return;
         }
         for (TaskEntity entity : active) {
-            entity.setStatus(target);
+            entity.setStatus(WorkspaceTaskStatus.SUPERSEDED);
         }
         taskRepository.saveAll(active);
+    }
+
+    private void applyToLatestActiveContractReviewTask(long contractId, WorkspaceTaskStatus target) {
+        String relatedId = String.valueOf(contractId);
+        findActiveContractReviewTask(relatedId).ifPresent(entity -> {
+            entity.setStatus(target);
+            taskRepository.save(entity);
+        });
     }
 
     private Optional<TaskEntity> findActiveContractReviewTask(String relatedId) {

@@ -18,8 +18,8 @@ import org.springframework.http.ResponseEntity;
  * 待办任务联动行为：
  * <ul>
  *   <li>法律咨询、案件分析、合同起草等 AI 工具不再生成待办；</li>
- *   <li>合同审查仅在带 contractId 时生成 / 复用待办，并同合同 id 关联；</li>
- *   <li>同一合同的活跃审查待办做去重，不会重复刷出新任务。</li>
+ *   <li>合同审查仅在带 contractId 时生成流程记录，并同合同 id 关联；</li>
+ *   <li>同一合同每次申请都保留记录，新申请会把旧活跃记录标记为已覆盖。</li>
  * </ul>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -97,8 +97,8 @@ class LegalWorkflowCreatesTaskIntegrationTest {
     }
 
     @Test
-    void contractReview_withContractId_createsOrReusesTaskKeyedByContractId() {
-        // 合同 5 在种子里没有活跃审查待办，第一次审查应创建一条新待办，第二次审查应复用同一条。
+    void contractReview_withContractId_createsRecordForEachApplicationAndSupersedesPreviousActiveOne() {
+        // 合同 5 在种子里没有活跃审查待办，连续两次审查应保留两条流程记录。
         ResponseEntity<String> before = client().getForEntity("/tasks", String.class);
 
         HttpHeaders headers = new HttpHeaders();
@@ -121,13 +121,16 @@ class LegalWorkflowCreatesTaskIntegrationTest {
         assertThat(afterFirst.getBody()).contains("\"relatedId\":\"5\"");
         assertThat(afterFirst.getBody()).contains("LX-2026-005");
 
-        // 同一合同再次审查应复用同一条任务（去重）。
+        // 同一合同再次审查应新增记录，并把上一条活跃记录置为已覆盖。
         ResponseEntity<String> secondRes =
                 client().postForEntity("/legal/contract-review", postEntity, String.class);
         assertThat(secondRes.getStatusCode()).isEqualTo(HttpStatus.OK);
 
         ResponseEntity<String> afterSecond = client().getForEntity("/tasks", String.class);
-        assertThat(countTasks(afterSecond.getBody())).isEqualTo(countTasks(afterFirst.getBody()));
+        assertThat(countTasks(afterSecond.getBody())).isEqualTo(countTasks(afterFirst.getBody()) + 1);
+        assertThat(afterSecond.getBody()).contains("\"relatedId\":\"5\"");
+        assertThat(afterSecond.getBody()).contains("\"status\":\"SUPERSEDED\"");
+        assertThat(afterSecond.getBody()).contains("\"status\":\"PENDING\"");
     }
 
     @Test

@@ -215,7 +215,7 @@ public class LegalWorkspaceServiceImpl implements LegalWorkspaceService {
         try {
             String contractNo = contract != null ? contract.contractNo() : null;
             String contractName = contract != null ? contract.name() : null;
-            taskService.createOrReuseContractReviewTask(contractId, contractNo, contractName, DEFAULT_TASK_INITIATOR);
+            taskService.createContractReviewTask(contractId, contractNo, contractName, DEFAULT_TASK_INITIATOR);
         } catch (Exception exception) {
             log.warn("生成合同审查待办失败 contractId={}: {}", contractId, exception.toString());
         }
