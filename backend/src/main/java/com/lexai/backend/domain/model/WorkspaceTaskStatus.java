@@ -6,6 +6,7 @@ package com.lexai.backend.domain.model;
 public enum WorkspaceTaskStatus {
     PENDING,
     IN_PROGRESS,
+    SUPERSEDED,
     COMPLETED,
     REJECTED
 }

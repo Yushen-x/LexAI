@@ -4,9 +4,9 @@
     <div class="header-section mb-6">
       <div class="flex justify-between items-end flex-wrap gap-3">
         <div>
-          <h2 class="text-xl font-semibold text-strong m-0">合同审查待办</h2>
+          <h2 class="text-xl font-semibold text-strong m-0">合同审查流程记录</h2>
           <p class="text-sm text-muted mt-1 m-0">
-            集中跟进等待人工确认的合同审查；决策保存后会自动同步合同台账与待办状态。
+            跟踪每一次合同审查申请；重复申请会保留历史记录，并将旧的未处理记录标记为已覆盖。
           </p>
         </div>
         <div class="stats-badge">
@@ -42,7 +42,7 @@
           <ul class="hint-list text-xs text-muted">
             <li><strong class="text-strong">合同台账</strong>：所有合同的总账与详情入口。</li>
             <li><strong class="text-strong">合同审查</strong>：对单份合同执行 AI + 人工双重审查的工作页。</li>
-            <li><strong class="text-strong">合同审查待办</strong>：等待人工拍板的合同清单（你正在看的页面）。</li>
+            <li><strong class="text-strong">流程记录</strong>：每次审查申请都会产生一条记录，最新未处理记录进入人工决策。</li>
           </ul>
         </div>
       </div>
@@ -84,7 +84,7 @@
 
           <div class="flex justify-between items-center mt-2 border-t pt-3 flex-wrap gap-3">
             <div class="text-xs text-muted">
-              在合同审查页做出决策后，待办状态会自动同步
+              在合同审查页做出决策后，最新流程记录会自动同步状态
             </div>
             <div class="flex gap-3 items-center flex-wrap">
               <button
@@ -128,6 +128,7 @@ const activeNav = ref<string>('PENDING');
 const navItems = [
   { key: 'PENDING', label: '待处理', icon: '⏱️' },
   { key: 'IN_PROGRESS', label: '处理中', icon: '🔄' },
+  { key: 'SUPERSEDED', label: '已覆盖', icon: '↪' },
   { key: 'COMPLETED', label: '已完成', icon: '✅' },
   { key: 'REJECTED', label: '已驳回', icon: '⛔' },
   { key: 'ALL', label: '全部', icon: '📋' },
@@ -136,6 +137,7 @@ const navItems = [
 const statusLabels: Record<WorkspaceTaskStatus, string> = {
   PENDING: '待处理',
   IN_PROGRESS: '处理中',
+  SUPERSEDED: '已被新申请覆盖',
   COMPLETED: '已完成',
   REJECTED: '已驳回',
 };
@@ -150,6 +152,8 @@ function statusBadgeClass(s: WorkspaceTaskStatus): string {
       return 'badge-warning';
     case 'IN_PROGRESS':
       return 'badge-primary';
+    case 'SUPERSEDED':
+      return 'badge-normal';
     case 'COMPLETED':
       return 'badge-success';
     case 'REJECTED':

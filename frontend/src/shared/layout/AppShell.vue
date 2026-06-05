@@ -75,7 +75,7 @@ const navItems = [
   { to: '/contract-list', title: '合同台账', icon: Files },
   { to: '/contract-draft', title: '合同起草', icon: FileEdit },
   { to: '/contract-review', title: '合同审查', icon: FileSearch },
-  { to: '/workflow-pending', title: '审查待办', icon: ListTodo },
+  { to: '/workflow-pending', title: '审查记录', icon: ListTodo },
   { to: '/consultation', title: '法律咨询', icon: MessageSquare },
   { to: '/case-analysis', title: '案件分析', icon: BarChart2 }
 ];

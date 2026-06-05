@@ -10,8 +10,8 @@
           <span class="mode-banner__desc">
             {{
               linkedContract
-                ? '当前正在为台账内的一份合同执行 AI + 人工双重审查，结果将自动回写合同档案与待办任务。'
-                : '当前为匿名试用，可粘贴任意条款体验 AI 风险识别，但不会保存到合同台账，也不会生成待办。'
+                ? '当前正在为台账内的一份合同执行 AI + 人工双重审查，结果将自动回写合同档案与流程记录。'
+                : '当前为匿名试用，可粘贴任意条款体验 AI 风险识别，但不会保存到合同台账，也不会生成流程记录。'
             }}
           </span>
         </div>
@@ -61,7 +61,7 @@
             <p class="text-muted text-sm mt-1">
               {{
                 linkedContract
-                  ? '为该合同执行 AI 风险识别 + 人工复核结论，并把结论同步到台账与待办。'
+                  ? '为该合同执行 AI 风险识别 + 人工复核结论，并把结论同步到台账与流程记录。'
                   : '粘贴合同正文体验 AI 风险识别，结果仅在当前页面展示。'
               }}
             </p>
@@ -289,9 +289,9 @@
             <section v-if="currentContractId !== null" class="report-section mt-6">
               <h4 class="section-heading text-primary">人工复核与决策</h4>
               <p class="text-sm text-muted mt-1">
-                决策保存后，台账中的最近一次审查结果与待办任务都会自动同步：
-                <span class="text-success">通过 → 待办标记完成</span>、
-                <span class="text-warning">退回修改 → 待办标记驳回</span>。
+                决策保存后，台账中的最近一次审查结果与最新流程记录都会自动同步：
+                <span class="text-success">通过 → 最新记录标记完成</span>、
+                <span class="text-warning">退回修改 → 最新记录标记驳回</span>。
               </p>
               <div class="manual-review-grid mt-3">
                 <div class="form-group">
@@ -319,13 +319,13 @@
                   :disabled="savingReviewFeedback"
                   @click="saveManualReview"
                 >
-                  {{ savingReviewFeedback ? '保存中...' : '保存决策并同步待办' }}
+                  {{ savingReviewFeedback ? '保存中...' : '保存决策并同步记录' }}
                 </button>
               </div>
             </section>
 
             <section v-else class="report-section mt-6 trial-hint">
-              <h4 class="section-heading">想保存人工意见 / 同步待办？</h4>
+              <h4 class="section-heading">想保存人工意见 / 同步流程记录？</h4>
               <p class="text-sm text-muted mt-1">
                 试用模式不会保存任何数据。请到 <a href="javascript:void(0)" class="text-primary" @click="goLedger">合同台账</a>
                 新建合同后，再从台账详情或合同起草页跳过来执行完整审查。
