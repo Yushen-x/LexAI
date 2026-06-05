@@ -48,6 +48,21 @@ class ContractApiIntegrationTest {
     }
 
     @Test
+    void exportContracts_returnsCsvAttachment() {
+        ResponseEntity<String> res = client().getForEntity(
+                "/contracts/export?status=DRAFT",
+                String.class
+        );
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(res.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .contains("contracts.csv");
+        assertThat(res.getHeaders().getContentType()).isNotNull();
+        assertThat(res.getBody()).contains("合同编号,合同名称,合同类型");
+        assertThat(res.getBody()).contains("LX-2026-003");
+    }
+
+    @Test
     void getContract_missing_returns404() {
         ResponseEntity<String> res = client().getForEntity("/contracts/999999", String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

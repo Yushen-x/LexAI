@@ -20,6 +20,7 @@ import com.lexai.backend.persistence.entity.ContractEntity;
 import com.lexai.backend.persistence.repository.ContractRepository;
 import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.Year;
 import java.util.Collections;
@@ -40,6 +41,7 @@ public class ContractService {
     private static final String AI_DRAFT_SOURCE = "AI_DRAFT";
     private static final String DEFAULT_REVIEW_DECISION = "PENDING_CONFIRMATION";
     private static final String CONTRACT_NO_CODE = "LX";
+    private static final String CSV_HEADER = "合同编号,合同名称,合同类型,甲方,乙方,金额,状态,来源,审查结论,创建时间,更新时间\n";
 
     private final ContractRepository contractRepository;
     private final ObjectMapper objectMapper;
@@ -67,16 +69,7 @@ public class ContractService {
         int safeSize = Math.min(Math.max(size, 1), 100);
         int safePage = Math.max(page, 0);
 
-        Specification<ContractEntity> spec = Specification.where(notDeleted());
-        if (StringUtils.hasText(keyword)) {
-            spec = spec.and(keywordContains(keyword.trim()));
-        }
-        if (status != null) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), status));
-        }
-        if (StringUtils.hasText(contractType)) {
-            spec = spec.and((root, q, cb) -> cb.equal(root.get("contractType"), contractType.trim()));
-        }
+        Specification<ContractEntity> spec = buildListSpec(keyword, status, contractType);
 
         Page<ContractEntity> result = contractRepository.findAll(
                 spec,
@@ -91,6 +84,30 @@ public class ContractService {
                 result.getNumber(),
                 result.getSize()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportCsv(String keyword, ContractStatus status, String contractType) {
+        List<ContractEntity> contracts = contractRepository.findAll(
+                buildListSpec(keyword, status, contractType),
+                Sort.by(Sort.Direction.DESC, "updatedAt")
+        );
+        StringBuilder csv = new StringBuilder("\uFEFF").append(CSV_HEADER);
+        for (ContractEntity contract : contracts) {
+            appendCsvCell(csv, contract.getContractNo());
+            appendCsvCell(csv, contract.getName());
+            appendCsvCell(csv, contract.getContractType());
+            appendCsvCell(csv, contract.getPartyA());
+            appendCsvCell(csv, contract.getPartyB());
+            appendCsvCell(csv, contract.getAmount());
+            appendCsvCell(csv, contract.getStatus());
+            appendCsvCell(csv, contract.getSource());
+            appendCsvCell(csv, normalizeReviewDecision(contract.getReviewDecision()));
+            appendCsvCell(csv, contract.getCreatedAt());
+            appendCsvCell(csv, contract.getUpdatedAt());
+            csv.setCharAt(csv.length() - 1, '\n');
+        }
+        return csv.toString().getBytes(StandardCharsets.UTF_8);
     }
 
     @Transactional(readOnly = true)
@@ -271,6 +288,24 @@ public class ContractService {
         return (root, q, cb) -> cb.isFalse(root.get("deleted"));
     }
 
+    private static Specification<ContractEntity> buildListSpec(
+            String keyword,
+            ContractStatus status,
+            String contractType
+    ) {
+        Specification<ContractEntity> spec = Specification.where(notDeleted());
+        if (StringUtils.hasText(keyword)) {
+            spec = spec.and(keywordContains(keyword.trim()));
+        }
+        if (status != null) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (StringUtils.hasText(contractType)) {
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("contractType"), contractType.trim()));
+        }
+        return spec;
+    }
+
     private static Specification<ContractEntity> keywordContains(String keyword) {
         return (root, q, cb) -> {
             String pattern = "%" + keyword.toLowerCase() + "%";
@@ -382,5 +417,10 @@ public class ContractService {
             return normalized;
         }
         return normalized.substring(0, maxLength) + "…";
+    }
+
+    private static void appendCsvCell(StringBuilder csv, Object value) {
+        String text = value == null ? "" : value.toString();
+        csv.append('"').append(text.replace("\"", "\"\"")).append("\",");
     }
 }

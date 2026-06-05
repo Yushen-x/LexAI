@@ -10,6 +10,10 @@ import com.lexai.backend.application.service.ContractService;
 import com.lexai.backend.common.api.ApiResponse;
 import com.lexai.backend.domain.model.ContractStatus;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +46,25 @@ public class ContractController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return ApiResponse.success(contractService.list(keyword, status, type, page, size));
+    }
+
+    @GetMapping(value = "/export", produces = "text/csv")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) ContractStatus status,
+            @RequestParam(required = false) String type
+    ) {
+        byte[] body = contractService.exportCsv(keyword, status, type);
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv"))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename("contracts.csv")
+                                .build()
+                                .toString()
+                )
+                .body(body);
     }
 
     @GetMapping("/{id}")
