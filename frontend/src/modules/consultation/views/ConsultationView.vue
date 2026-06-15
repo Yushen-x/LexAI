@@ -63,7 +63,7 @@
           </div>
 
           <div class="form-actions mt-6 flex gap-4">
-            <button class="btn btn-primary" :disabled="loading" @click="handleSubmit">
+            <button class="btn btn-primary" :disabled="loading || !form.question.trim()" @click="handleSubmit">
               {{ loading ? '智能推演中...' : '开始分析' }}
             </button>
             <button class="btn btn-secondary" type="button" @click="resetForm">清空内容</button>
@@ -225,6 +225,7 @@ import { computed, reactive, ref } from 'vue';
 import { submitConsultation } from '@/shared/api/legal';
 import type { ConsultationRequest, ConsultationResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
+import { copyText } from '@/shared/ui/clipboard';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
 import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
 import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
@@ -328,17 +329,19 @@ function applyPreset(preset: { question: string; facts: string[] }) {
 
 async function copyLegalBasis() {
   if (!result.value?.legalBasis) return;
-  try {
-    const text = result.value.legalBasis.join('\n');
-    await navigator.clipboard.writeText(text);
+  const text = result.value.legalBasis.join('\n');
+  if (await copyText(text)) {
     toast('法律依据已复制到剪贴板', 'success');
-  } catch (error) {
-    console.error('复制失败:', error);
+  } else {
     toast('复制失败，请重试', 'error');
   }
 }
 
 async function handleSubmit() {
+  if (!form.question.trim()) {
+    toast('请先填写咨询问题', 'warning');
+    return;
+  }
   result.value = null;
   loading.value = true;
   form.facts = normalizedFacts.value;

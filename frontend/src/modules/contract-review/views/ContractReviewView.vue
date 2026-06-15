@@ -354,6 +354,7 @@ import { submitContractReview } from '@/shared/api/legal';
 import type { ContractItem, ContractLatestReview, ContractReviewDecision, ContractStatus } from '@/shared/types/contracts';
 import type { ContractReviewResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
+import { copyText } from '@/shared/ui/clipboard';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
 import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
 import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
@@ -470,11 +471,9 @@ function getRiskBadgeClass(level: string) {
 }
 
 async function copyRiskSuggestion(suggestion: string) {
-  try {
-    await navigator.clipboard.writeText(suggestion);
+  if (await copyText(suggestion)) {
     toast('修改建议已复制到剪贴板', 'success');
-  } catch (error) {
-    console.error('复制失败:', error);
+  } else {
     toast('复制失败，请重试', 'error');
   }
 }

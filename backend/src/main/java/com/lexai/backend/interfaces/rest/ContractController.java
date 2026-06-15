@@ -2,14 +2,18 @@ package com.lexai.backend.interfaces.rest;
 
 import com.lexai.backend.application.dto.contract.ContractListResponse;
 import com.lexai.backend.application.dto.contract.ContractResponse;
+import com.lexai.backend.application.dto.contract.ContractReviewRecordDetail;
+import com.lexai.backend.application.dto.contract.ContractReviewRecordSummary;
 import com.lexai.backend.application.dto.contract.CreateContractRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractReviewRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractRequest;
 import com.lexai.backend.application.dto.contract.UpdateContractStatusRequest;
+import com.lexai.backend.application.service.ContractReviewRecordService;
 import com.lexai.backend.application.service.ContractService;
 import com.lexai.backend.common.api.ApiResponse;
 import com.lexai.backend.domain.model.ContractStatus;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,9 +33,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ContractController {
 
     private final ContractService contractService;
+    private final ContractReviewRecordService reviewRecordService;
 
-    public ContractController(ContractService contractService) {
+    public ContractController(
+            ContractService contractService,
+            ContractReviewRecordService reviewRecordService
+    ) {
         this.contractService = contractService;
+        this.reviewRecordService = reviewRecordService;
     }
 
     /**
@@ -70,6 +79,19 @@ public class ContractController {
     @GetMapping("/{id}")
     public ApiResponse<ContractResponse> get(@PathVariable long id) {
         return ApiResponse.success(contractService.getById(id));
+    }
+
+    @GetMapping("/{id}/reviews")
+    public ApiResponse<List<ContractReviewRecordSummary>> listReviews(@PathVariable long id) {
+        return ApiResponse.success(reviewRecordService.listByContract(id));
+    }
+
+    @GetMapping("/{id}/reviews/{reviewId}")
+    public ApiResponse<ContractReviewRecordDetail> getReview(
+            @PathVariable long id,
+            @PathVariable long reviewId
+    ) {
+        return ApiResponse.success(reviewRecordService.getByContract(id, reviewId));
     }
 
     @PostMapping

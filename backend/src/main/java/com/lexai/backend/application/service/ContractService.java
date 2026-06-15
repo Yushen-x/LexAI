@@ -46,16 +46,19 @@ public class ContractService {
     private final ContractRepository contractRepository;
     private final ObjectMapper objectMapper;
     private final TaskService taskService;
+    private final ContractReviewRecordService reviewRecordService;
     private final Object contractNoLock = new Object();
 
     public ContractService(
             ContractRepository contractRepository,
             ObjectMapper objectMapper,
-            TaskService taskService
+            TaskService taskService,
+            ContractReviewRecordService reviewRecordService
     ) {
         this.contractRepository = contractRepository;
         this.objectMapper = objectMapper;
         this.taskService = taskService;
+        this.reviewRecordService = reviewRecordService;
     }
 
     @Transactional(readOnly = true)
@@ -225,7 +228,9 @@ public class ContractService {
         if (entity.getStatus() == ContractStatus.DRAFT) {
             entity.setStatus(ContractStatus.UNDER_REVIEW);
         }
-        return toResponse(contractRepository.save(entity));
+        ContractEntity saved = contractRepository.save(entity);
+        reviewRecordService.recordAiReview(saved, review);
+        return toResponse(saved);
     }
 
     @EvictContractStatsCaches
@@ -241,6 +246,7 @@ public class ContractService {
             entity.setReviewedAt(Instant.now());
         }
         ContractEntity saved = contractRepository.save(entity);
+        reviewRecordService.syncLatestManualReview(saved.getId(), decision, saved.getReviewerOpinion());
         taskService.resolveContractReviewTask(saved.getId(), decision);
         return toResponse(saved);
     }
