@@ -60,7 +60,7 @@
         :key="item.status"
         class="stat-card"
       >
-        <span class="stat-label">{{ statusLabelMap[item.status] ?? item.status }}</span>
+        <span class="stat-label">{{ statusLabel(item.status) }}</span>
         <span class="stat-value">{{ item.count }}</span>
       </div>
     </div>
@@ -272,6 +272,16 @@ import { fetchContracts, fetchContractStatistics, getContract, updateContractSta
 import type { ContractStatsSummary } from '@/shared/api/contracts'
 import { CONTRACT_TYPE_VALUES } from '@/shared/constants/contractTypes'
 import type { ContractItem, ContractStatus } from '@/shared/types/contracts'
+import {
+  CONTRACT_STATUS_OPTIONS,
+  formatContractAmount,
+  formatDateTime,
+  isStageBefore,
+  nextStatusActions,
+  reviewDecisionLabel,
+  statusLabel,
+  statusTone,
+} from '@/shared/contracts/lifecycle'
 
 const router = useRouter()
 const route = useRoute()
@@ -292,15 +302,6 @@ const rows = ref<ContractItem[]>([])
 const selectedContract = ref<ContractItem | null>(null)
 const statistics = ref<ContractStatsSummary | null>(null)
 
-const statusLabelMap: Record<string, string> = {
-  DRAFT: '草稿',
-  UNDER_REVIEW: '审查中',
-  SIGNED: '已签署',
-  IN_PROGRESS: '执行中',
-  COMPLETED: '已完成',
-  TERMINATED: '已终止',
-}
-
 async function loadStatistics(): Promise<void> {
   try {
     statistics.value = await fetchContractStatistics()
@@ -311,75 +312,28 @@ async function loadStatistics(): Promise<void> {
 
 const contractTypes = CONTRACT_TYPE_VALUES
 
-const statusOptions: { value: ContractStatus; label: string }[] = [
-  { value: 'DRAFT', label: '草稿' },
-  { value: 'UNDER_REVIEW', label: '审查中' },
-  { value: 'SIGNED', label: '已签署' },
-  { value: 'IN_PROGRESS', label: '执行中' },
-  { value: 'COMPLETED', label: '已完成' },
-  { value: 'TERMINATED', label: '已终止' },
-]
+const statusOptions = CONTRACT_STATUS_OPTIONS
 
 interface ContractAction {
   label: string
   target: ContractStatus
-  tone: 'success' | 'warning' | 'danger' | 'muted'
+  tone: 'success' | 'danger'
   handler: (row: ContractItem) => void
 }
 
+// 推进到目标状态对应的操作处理函数：提交审查走路由，其余为状态流转。
+function actionHandler(target: ContractStatus): (row: ContractItem) => void {
+  if (target === 'UNDER_REVIEW') {
+    return (r) => openReview(r.id)
+  }
+  return (r) => doStatusChange(r, target)
+}
+
 function nextActions(row: ContractItem): ContractAction[] {
-  const actions: ContractAction[] = []
-  const s = row.status
-
-  if (s === 'DRAFT') {
-    actions.push({
-      label: '提交审查',
-      target: 'UNDER_REVIEW',
-      tone: 'success',
-      handler: (r) => openReview(r.id)
-    })
-  }
-
-  if (s === 'UNDER_REVIEW') {
-    const decision = row.latestReview?.reviewDecision
-    if (decision === 'APPROVED') {
-      actions.push({
-        label: '标记已签署',
-        target: 'SIGNED',
-        tone: 'success',
-        handler: (r) => doStatusChange(r, 'SIGNED')
-      })
-    }
-  }
-
-  if (s === 'SIGNED') {
-    actions.push({
-      label: '开始履约',
-      target: 'IN_PROGRESS',
-      tone: 'success',
-      handler: (r) => doStatusChange(r, 'IN_PROGRESS')
-    })
-  }
-
-  if (s === 'IN_PROGRESS') {
-    actions.push({
-      label: '标记完成',
-      target: 'COMPLETED',
-      tone: 'success',
-      handler: (r) => doStatusChange(r, 'COMPLETED')
-    })
-  }
-
-  if (s !== 'COMPLETED' && s !== 'TERMINATED') {
-    actions.push({
-      label: '终止',
-      target: 'TERMINATED',
-      tone: 'danger',
-      handler: (r) => doStatusChange(r, 'TERMINATED')
-    })
-  }
-
-  return actions
+  return nextStatusActions(row).map((action) => ({
+    ...action,
+    handler: actionHandler(action.target)
+  }))
 }
 
 const lifecycleStages: { key: ContractStatus | 'TERMINATED'; label: string }[] = [
@@ -389,15 +343,9 @@ const lifecycleStages: { key: ContractStatus | 'TERMINATED'; label: string }[] =
   { key: 'IN_PROGRESS', label: '执行中' },
   { key: 'COMPLETED', label: '已完成' }
 ]
-const lifecycleOrder: ContractStatus[] = ['DRAFT', 'UNDER_REVIEW', 'SIGNED', 'IN_PROGRESS', 'COMPLETED']
-
 const currentStageKey = computed<ContractStatus>(() => {
   return (selectedContract.value?.status ?? 'DRAFT') as ContractStatus
 })
-
-function isStageBefore(stage: ContractStatus, current: ContractStatus): boolean {
-  return lifecycleOrder.indexOf(stage) < lifecycleOrder.indexOf(current)
-}
 
 const nextStepHint = computed<string>(() => {
   const contract = selectedContract.value
@@ -436,55 +384,9 @@ const query = computed(() => ({
   status: (status.value || undefined) as ContractStatus | undefined,
 }))
 
-function statusLabel(s: ContractStatus): string {
-  return statusOptions.find((o) => o.value === s)?.label ?? s
-}
-
-function statusTone(s: ContractStatus): 'success' | 'warning' | 'danger' | 'muted' {
-  switch (s) {
-    case 'DRAFT':
-      return 'muted'
-    case 'UNDER_REVIEW':
-      return 'warning'
-    case 'SIGNED':
-    case 'IN_PROGRESS':
-    case 'COMPLETED':
-      return 'success'
-    case 'TERMINATED':
-      return 'danger'
-    default:
-      return 'muted'
-  }
-}
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount)
-}
-
-function formatTime(iso: string): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function reviewDecisionLabel(decision: string): string {
-  switch (decision) {
-    case 'APPROVED':
-      return '审查通过'
-    case 'NEEDS_REVISION':
-      return '退回修改'
-    case 'PENDING_CONFIRMATION':
-    default:
-      return '待人工确认'
-  }
-}
+// 模板沿用的本地别名，逻辑统一来自 @/shared/contracts/lifecycle
+const formatAmount = formatContractAmount
+const formatTime = formatDateTime
 
 function errMessage(e: unknown): string {
   if (e instanceof Error) return e.message
