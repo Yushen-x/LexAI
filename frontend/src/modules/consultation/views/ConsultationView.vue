@@ -53,7 +53,7 @@
           </div>
 
           <div class="form-actions mt-6 flex gap-4">
-            <button class="btn btn-primary" :disabled="loading" @click="handleSubmit">
+            <button class="btn btn-primary" :disabled="loading || !form.question.trim()" @click="handleSubmit">
               {{ loading ? '智能推演中...' : '开始分析' }}
             </button>
             <button class="btn btn-secondary" type="button" @click="resetForm">清空内容</button>
@@ -324,6 +324,10 @@ async function copyLegalBasis() {
 }
 
 async function handleSubmit() {
+  if (!form.question.trim()) {
+    toast('请先填写咨询问题', 'warning');
+    return;
+  }
   result.value = null;
   loading.value = true;
   form.facts = normalizedFacts.value;

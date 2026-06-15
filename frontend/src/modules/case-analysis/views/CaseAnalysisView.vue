@@ -53,7 +53,7 @@
           </div>
 
           <div class="form-actions mt-6 flex gap-4">
-            <button class="btn btn-primary" :disabled="loading" @click="handleSubmit">
+            <button class="btn btn-primary" :disabled="loading || !form.caseSummary.trim()" @click="handleSubmit">
               {{ loading ? '深度解析中...' : '生成案件画像' }}
             </button>
             <button class="btn btn-secondary" type="button" @click="resetForm">清空内容</button>
@@ -283,6 +283,10 @@ async function copySuggestedActions() {
 }
 
 async function handleSubmit() {
+  if (!form.caseSummary.trim()) {
+    toast('请先填写案情摘要', 'warning');
+    return;
+  }
   result.value = null;
   loading.value = true;
   form.evidencePoints = normalizedEvidence.value;
