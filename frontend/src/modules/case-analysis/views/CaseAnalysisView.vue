@@ -14,6 +14,16 @@
       </button>
     </div>
 
+    <div class="page-with-history">
+      <LegalSessionHistoryPanel
+        scenario-type="CASE_ANALYSIS"
+        title="分析历史"
+        subtitle="自动保存每次案件画像"
+        :refresh-key="historyRefreshKey"
+        @restore="restoreFromHistory"
+      />
+
+      <div class="main-column">
     <div class="grid-layout">
       <!-- Input Section -->
       <div class="card input-card">
@@ -189,19 +199,22 @@
         </div>
       </div>
     </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { submitCaseAnalysis } from '@/shared/api/legal';
-import type { CaseAnalysisResponse } from '@/shared/types/legal';
+import type { CaseAnalysisRequest, CaseAnalysisResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
 import { copyText } from '@/shared/ui/clipboard';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
 import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
 import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
 import CitedText from '@/shared/ui/CitedText.vue';
+import LegalSessionHistoryPanel from '@/shared/ui/LegalSessionHistoryPanel.vue';
 import RagSourceList from '@/shared/ui/RagSourceList.vue';
 
 const form = reactive({
@@ -212,6 +225,7 @@ const form = reactive({
 const evidenceInput = ref('');
 const result = ref<CaseAnalysisResponse | null>(null);
 const loading = ref(false);
+const historyRefreshKey = ref(0);
 
 const presets = [
   {
@@ -296,12 +310,26 @@ async function handleSubmit() {
       caseSummary: form.caseSummary,
       evidencePoints: form.evidencePoints
     });
+    historyRefreshKey.value += 1;
   } catch (error) {
     console.error('提交案件分析失败:', error);
     result.value = null;
     toast('案件分析失败，请稍后重试', 'error');
   } finally {
     loading.value = false;
+  }
+}
+
+function restoreFromHistory(payload: { inputPayload: string; outputPayload: string }) {
+  try {
+    const input = JSON.parse(payload.inputPayload) as CaseAnalysisRequest;
+    const output = JSON.parse(payload.outputPayload) as CaseAnalysisResponse;
+    form.caseSummary = input.caseSummary ?? '';
+    evidenceInput.value = (input.evidencePoints ?? []).join('，');
+    result.value = output;
+  } catch (error) {
+    console.error('恢复案件分析历史失败:', error);
+    toast('恢复历史失败', 'error');
   }
 }
 
@@ -315,8 +343,25 @@ function resetForm() {
 
 <style scoped>
 .page-container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
+}
+
+.page-with-history {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.main-column {
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .page-with-history {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mb-6 { margin-bottom: 1.5rem; }

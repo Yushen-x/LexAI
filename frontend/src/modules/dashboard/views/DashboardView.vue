@@ -46,6 +46,11 @@
       </div>
     </div>
 
+    <!-- Contract Analytics -->
+    <div v-if="contractStatistics" class="mb-6">
+      <DashboardCharts :statistics="contractStatistics" />
+    </div>
+
     <div class="grid-layout">
       <div class="left-col gap-6 flex-col flex">
         <div class="card">
@@ -128,13 +133,20 @@
 
         <div class="card">
           <div class="card-header pb-4 border-b">
-            <h3 class="card-title">最近活动</h3>
+            <h3 class="card-title">最近 AI 活动</h3>
+            <p class="text-xs text-muted m-0 mt-1">来自法律咨询 / 案件分析的历史会话</p>
           </div>
           <div class="activity-list pt-4">
-            <div v-if="!loadingStats && recentActivities.length === 0" class="text-muted text-sm px-4 py-3">
-              暂无近期任务记录
+            <div v-if="!loadingStats && recentAiActivities.length === 0" class="text-muted text-sm px-4 py-3">
+              暂无 AI 会话记录，去法律咨询或案件分析体验一下吧
             </div>
-            <div v-for="(activity, index) in recentActivities" :key="index" class="activity-item">
+            <button
+              v-for="activity in recentAiActivities"
+              :key="activity.id"
+              type="button"
+              class="activity-item activity-item--clickable"
+              @click="goAiActivity(activity.routeName)"
+            >
               <div class="activity-icon" :style="{ backgroundColor: activity.bgColor, color: activity.color }">
                 <component :is="activity.icon" style="width: 18px; height: 18px;" />
               </div>
@@ -142,7 +154,7 @@
                 <div class="activity-text">{{ activity.text }}</div>
                 <div class="activity-time">{{ activity.time }}</div>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </div>
@@ -156,18 +168,17 @@ import { useRouter } from 'vue-router';
 import { 
   Files as IconContract, 
   ListTodo as IconWorkflow, 
-  Layers as IconCapability, 
   History as IconHistory,
   MessageSquare as IconConsultation,
   BarChart2 as IconAnalysis,
-  FileSearch as IconReview,
-  FileEdit as IconDraft
+  FileSearch as IconReview
 } from 'lucide-vue-next';
-import { fetchContracts } from '@/shared/api/contracts';
-import { fetchHealth, fetchOverview } from '@/shared/api/legal';
+import { fetchContracts, fetchContractStatistics, type ContractStatsSummary } from '@/shared/api/contracts';
+import { fetchHealth, fetchOverview, fetchRecentLegalSessions } from '@/shared/api/legal';
 import { fetchTasks } from '@/shared/api/tasks';
-import type { PlatformOverview } from '@/shared/types/legal';
+import type { LegalScenarioType, LegalSessionSummary, PlatformOverview, SystemHealth } from '@/shared/types/legal';
 import type { TaskItem, WorkspaceTaskType } from '@/shared/types/tasks';
+import DashboardCharts from '@/modules/dashboard/components/DashboardCharts.vue';
 
 const router = useRouter();
 
@@ -180,11 +191,15 @@ const contractTotal = ref(0);
 const pendingTaskCount = ref(0);
 const allTaskCount = ref(0);
 const capabilityCount = ref(0);
+const consultationSessionCount = ref(0);
+const caseAnalysisSessionCount = ref(0);
 
 const healthUp = ref(true);
+const systemHealth = ref<SystemHealth | null>(null);
+const contractStatistics = ref<ContractStatsSummary | null>(null);
 
 const pendingTasksList = ref<TaskItem[]>([]);
-const allTasksSnapshot = ref<TaskItem[]>([]);
+const recentLegalSessions = ref<LegalSessionSummary[]>([]);
 
 function errMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -197,16 +212,6 @@ function typeShortLabel(t: WorkspaceTaskType): string {
     CASE_ANALYSIS: '分析',
     CONTRACT_REVIEW: '审查',
     CONTRACT_DRAFT: '起草',
-  };
-  return m[t] ?? t;
-}
-
-function typeLabel(t: WorkspaceTaskType): string {
-  const m: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: '法律咨询',
-    CASE_ANALYSIS: '案件分析',
-    CONTRACT_REVIEW: '合同审查',
-    CONTRACT_DRAFT: '合同起草',
   };
   return m[t] ?? t;
 }
@@ -242,16 +247,16 @@ const adminStats = computed(() => [
     bgColor: '#fef3c7',
   },
   {
-    title: '能力模块',
-    value: formatInt(capabilityCount.value),
-    icon: IconCapability,
+    title: '法律咨询历史',
+    value: formatInt(consultationSessionCount.value),
+    icon: IconConsultation,
     color: '#8b5cf6',
     bgColor: '#f3e8ff',
   },
   {
-    title: '任务记录',
-    value: formatInt(allTaskCount.value),
-    icon: IconHistory,
+    title: '案件分析历史',
+    value: formatInt(caseAnalysisSessionCount.value),
+    icon: IconAnalysis,
     color: '#10b981',
     bgColor: '#d1fae5',
   },
@@ -261,66 +266,93 @@ function formatInt(n: number): string {
   return new Intl.NumberFormat('zh-CN').format(n);
 }
 
-const systemStatus = computed(() => [
-  {
-    name: 'API 服务',
-    value: healthUp.value ? '正常' : '异常',
-    color: healthUp.value ? '#16a34a' : '#dc2626',
-    badgeClass: healthUp.value ? 'badge-success' : 'badge-danger',
-  },
-  {
-    name: '腾讯混元大模型',
-    value: 'hunyuan-lite · 已接入',
-    color: '#16a34a',
-    badgeClass: 'badge-success',
-  },
-  {
-    name: '得理法律开放平台',
-    value: '法规 + 类案 双通路',
-    color: '#16a34a',
-    badgeClass: 'badge-success',
-  },
-  {
-    name: '本地知识库 RAG',
-    value: '8 份文档 · TF-IDF 索引',
-    color: '#16a34a',
-    badgeClass: 'badge-success',
-  },
-  {
-    name: '数据存储',
-    value: 'MySQL 持久化',
-    color: '#16a34a',
-    badgeClass: 'badge-success',
-  },
-]);
+const systemStatus = computed(() => {
+  const health = systemHealth.value;
+  const aiMode = health?.aiMode ?? 'mock';
+  const aiLabel = aiMode === 'mock' ? 'Mock 演示模式' : `${aiMode} · 已接入`;
+  const kbDocs = health?.knowledgeDocumentCount ?? 0;
+  const kbChunks = health?.knowledgeChunkCount ?? 0;
+  const dbLabel = health?.database ?? 'MySQL 持久化';
+
+  return [
+    {
+      name: 'API 服务',
+      value: healthUp.value ? '正常' : '异常',
+      color: healthUp.value ? '#16a34a' : '#dc2626',
+      badgeClass: healthUp.value ? 'badge-success' : 'badge-danger',
+    },
+    {
+      name: 'AI 推理模式',
+      value: aiLabel,
+      color: '#16a34a',
+      badgeClass: 'badge-success',
+    },
+    {
+      name: '本地知识库 RAG',
+      value: `${kbDocs} 份文档 · ${kbChunks} 个 chunk`,
+      color: kbDocs > 0 ? '#16a34a' : '#f59e0b',
+      badgeClass: kbDocs > 0 ? 'badge-success' : 'badge-warning',
+    },
+    {
+      name: '数据存储',
+      value: dbLabel,
+      color: '#16a34a',
+      badgeClass: 'badge-success',
+    },
+    {
+      name: '会话历史',
+      value: `咨询 ${health?.consultationSessionCount ?? 0} · 分析 ${health?.caseAnalysisSessionCount ?? 0}`,
+      color: '#6366f1',
+      badgeClass: 'badge-primary',
+    },
+  ];
+});
 
 const todoTasks = computed(() => pendingTasksList.value.slice(0, 5));
 
-const recentActivities = computed(() => {
-  const sorted = [...allTasksSnapshot.value].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-  const top = sorted.slice(0, 5);
-  const colorByType: Record<WorkspaceTaskType, string> = {
-    LEGAL_CONSULTATION: '#3b82f6',
-    CASE_ANALYSIS: '#10b981',
-    CONTRACT_REVIEW: '#f59e0b',
-    CONTRACT_DRAFT: '#8b5cf6',
-  };
-  const iconByType: Record<WorkspaceTaskType, any> = {
-    LEGAL_CONSULTATION: IconConsultation,
-    CASE_ANALYSIS: IconAnalysis,
-    CONTRACT_REVIEW: IconReview,
-    CONTRACT_DRAFT: IconDraft,
-  };
-  return top.map((t) => ({
-    text: `${typeLabel(t.type)}：${t.title}`,
-    time: formatRelative(t.createdAt),
-    icon: iconByType[t.type] || IconHistory,
-    color: colorByType[t.type] || '#64748b',
-    bgColor: (colorByType[t.type] || '#64748b') + '15',
-  }));
-});
+const scenarioMeta: Record<
+  LegalScenarioType,
+  { label: string; color: string; icon: typeof IconConsultation; routeName: string }
+> = {
+  CONSULTATION: {
+    label: '法律咨询',
+    color: '#3b82f6',
+    icon: IconConsultation,
+    routeName: 'consultation',
+  },
+  CASE_ANALYSIS: {
+    label: '案件分析',
+    color: '#10b981',
+    icon: IconAnalysis,
+    routeName: 'caseAnalysis',
+  },
+  CONTRACT_REVIEW: {
+    label: '合同审查',
+    color: '#f59e0b',
+    icon: IconReview,
+    routeName: 'contractReview',
+  },
+};
+
+const recentAiActivities = computed(() =>
+  recentLegalSessions.value.map((session) => {
+    const meta = scenarioMeta[session.scenarioType] ?? {
+      label: session.scenarioType,
+      color: '#64748b',
+      icon: IconHistory,
+      routeName: 'dashboard',
+    };
+    return {
+      id: session.id,
+      text: `${meta.label}：${session.title}`,
+      time: formatRelative(session.createdAt),
+      icon: meta.icon,
+      color: meta.color,
+      bgColor: meta.color + '15',
+      routeName: meta.routeName,
+    };
+  })
+);
 
 function goContractList() {
   router.push({ name: 'contractList' });
@@ -335,21 +367,31 @@ function goContractReview() {
   router.push({ name: 'contractReview' });
 }
 
+function goAiActivity(routeName: string) {
+  router.push({ name: routeName });
+}
+
 async function loadDashboard(): Promise<void> {
   errorBanner.value = '';
   loadingStats.value = true;
   try {
-    const [ov, health, listResult, tasks] = await Promise.all([
+    const [ov, health, listResult, tasks, stats, recentSessions] = await Promise.all([
       fetchOverview(),
-      fetchHealth().catch(() => ({ status: 'DOWN' })),
+      fetchHealth().catch(() => null),
       fetchContracts({ page: 0, size: 1 }),
       fetchTasks(),
+      fetchContractStatistics().catch(() => null),
+      fetchRecentLegalSessions(5).catch(() => []),
     ]);
     overview.value = ov;
     capabilityCount.value = ov.capabilities?.length ?? 0;
-    healthUp.value = health.status === 'UP';
-    contractTotal.value = listResult.totalElements;
-    allTasksSnapshot.value = tasks;
+    systemHealth.value = health;
+    healthUp.value = health?.status === 'UP';
+    consultationSessionCount.value = health?.consultationSessionCount ?? 0;
+    caseAnalysisSessionCount.value = health?.caseAnalysisSessionCount ?? 0;
+    contractStatistics.value = stats;
+    contractTotal.value = stats?.total ?? listResult.totalElements;
+    recentLegalSessions.value = recentSessions;
     const pending = tasks.filter((t) => t.status === 'PENDING');
     pendingTasksList.value = pending;
     pendingTaskCount.value = pending.length;
@@ -358,12 +400,16 @@ async function loadDashboard(): Promise<void> {
     errorBanner.value = errMessage(e);
     overview.value = null;
     healthUp.value = false;
+    systemHealth.value = null;
+    contractStatistics.value = null;
     contractTotal.value = 0;
     pendingTaskCount.value = 0;
     allTaskCount.value = 0;
     capabilityCount.value = 0;
+    consultationSessionCount.value = 0;
+    caseAnalysisSessionCount.value = 0;
     pendingTasksList.value = [];
-    allTasksSnapshot.value = [];
+    recentLegalSessions.value = [];
   } finally {
     loadingStats.value = false;
   }
@@ -619,6 +665,16 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
+.badge-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
 .stat-card {
   border: none !important;
   background: var(--bg-surface);
@@ -792,6 +848,16 @@ onMounted(() => {
 .activity-item:hover {
   background-color: var(--bg-app);
   border-color: var(--border-light);
+}
+
+.activity-item--clickable {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .todo-content,

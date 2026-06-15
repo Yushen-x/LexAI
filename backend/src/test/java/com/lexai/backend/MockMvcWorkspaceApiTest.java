@@ -54,4 +54,62 @@ class MockMvcWorkspaceApiTest {
                 .andExpect(jsonPath("$.data.recommendations").isArray())
                 .andExpect(jsonPath("$.data.riskAlerts").isArray());
     }
+
+    @Test
+    void getLegalSessions_returnsPagedHistoryAfterConsultation() throws Exception {
+        String json = "{\"question\":\"历史持久化测试\",\"facts\":[]}";
+        mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/legal/sessions").param("type", "CONSULTATION").param("page", "0").param("size", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.content[0].title").value("历史持久化测试"))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
+    }
+
+    @Test
+    void getLegalSessions_supportsKeywordSearch() throws Exception {
+        mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"拖欠工资如何维权\",\"facts\":[]}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"合同违约赔偿标准\",\"facts\":[]}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/legal/sessions")
+                        .param("type", "CONSULTATION")
+                        .param("keyword", "工资")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("拖欠工资如何维权"));
+    }
+
+    @Test
+    void getRecentLegalSessions_returnsLatestAiActivity() throws Exception {
+        mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"Dashboard 最近活动测试\",\"facts\":[]}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/legal/sessions/recent").param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].title").value("Dashboard 最近活动测试"));
+    }
+
+    @Test
+    void getSystemHealth_returnsExtendedFields() throws Exception {
+        mockMvc.perform(get("/system/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.status").value("UP"))
+                .andExpect(jsonPath("$.data.aiMode").exists())
+                .andExpect(jsonPath("$.data.database").exists())
+                .andExpect(jsonPath("$.data.knowledgeDocumentCount").exists())
+                .andExpect(jsonPath("$.data.consultationSessionCount").exists());
+    }
 }

@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
-#  LexAI 一键启动脚本（macOS / Linux 版）
-#  用法：chmod +x start.sh && ./start.sh
+#  LexAI 一键启动（macOS / Linux）
+#  用法：
+#    ./start.sh              # 后台启动，完成后退出
+#    ./start.sh --foreground # 前台运行，Ctrl+C 停止
+#    ./start.sh -f
 # ============================================================
 
 set -e
 
-# ---------- Colors ----------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -14,240 +16,270 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# ---------- Constants ----------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="${SCRIPT_DIR}/backend"
 FRONTEND_DIR="${SCRIPT_DIR}/frontend"
+RUN_DIR="${SCRIPT_DIR}/.lexai"
 BACKEND_PORT=8081
 FRONTEND_PORT=5173
 ENV_FILE="${BACKEND_DIR}/.env"
 ENV_EXAMPLE="${BACKEND_DIR}/.env.example"
-HAS_ERROR=0
+FOREGROUND=0
 BACKEND_PID=""
 FRONTEND_PID=""
 
-# ---------- Cleanup on exit ----------
-cleanup() {
+if [ "${1:-}" = "--foreground" ] || [ "${1:-}" = "-f" ]; then
+    FOREGROUND=1
+fi
+
+log_ok()   { echo -e "  ${GREEN}[OK]${NC} $*"; }
+log_warn() { echo -e "  ${YELLOW}[i]${NC} $*"; }
+log_err()  { echo -e "  ${RED}[X]${NC} $*"; }
+
+port_in_use() {
+    lsof -ti ":$1" >/dev/null 2>&1
+}
+
+resolve_java_home() {
+    local candidates=(
+        "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+        "/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"
+    )
+
+    for home in "${candidates[@]}"; do
+        if [ -x "${home}/bin/java" ]; then
+            export JAVA_HOME="$home"
+            export PATH="${JAVA_HOME}/bin:${PATH}"
+            return 0
+        fi
+    done
+
+    if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+        local detected
+        detected="$(/usr/libexec/java_home -v 21 2>/dev/null || true)"
+        if [ -n "$detected" ] && [ -x "${detected}/bin/java" ]; then
+            export JAVA_HOME="$detected"
+            export PATH="${JAVA_HOME}/bin:${PATH}"
+            return 0
+        fi
+    fi
+
+    if command -v java >/dev/null 2>&1 && java -version 2>&1 | grep -q 'version "21'; then
+        return 0
+    fi
+
+    return 1
+}
+
+mysql_available() {
+    local host="${MYSQL_HOST:-127.0.0.1}"
+    local port="${MYSQL_PORT:-3306}"
+    if command -v nc >/dev/null 2>&1; then
+        nc -z "$host" "$port" >/dev/null 2>&1
+        return $?
+    fi
+    (echo >/dev/tcp/"$host"/"$port") >/dev/null 2>&1
+}
+
+save_pid() {
+    mkdir -p "$RUN_DIR"
+    echo "$1" > "${RUN_DIR}/$2.pid"
+}
+
+cleanup_foreground() {
     echo ""
-    echo -e "${YELLOW}[i] Stopping LexAI services...${NC}"
-    if [ -n "$BACKEND_PID" ] && kill -0 "$BACKEND_PID" 2>/dev/null; then
-        kill "$BACKEND_PID" 2>/dev/null
-        echo -e "${GREEN}[OK] Backend stopped.${NC}"
-    fi
-    if [ -n "$FRONTEND_PID" ] && kill -0 "$FRONTEND_PID" 2>/dev/null; then
-        kill "$FRONTEND_PID" 2>/dev/null
-        echo -e "${GREEN}[OK] Frontend stopped.${NC}"
-    fi
-    echo -e "${GREEN}[OK] LexAI fully stopped.${NC}"
+    log_warn "Stopping LexAI services..."
+    [ -n "$BACKEND_PID" ] && kill "$BACKEND_PID" 2>/dev/null || true
+    [ -n "$FRONTEND_PID" ] && kill "$FRONTEND_PID" 2>/dev/null || true
+    rm -f "${RUN_DIR}/backend.pid" "${RUN_DIR}/frontend.pid"
+    log_ok "LexAI stopped."
     exit 0
 }
 
-trap cleanup SIGINT SIGTERM
-
-# ---------- Title ----------
-echo ""
-echo -e "${CYAN}${BOLD}"
-echo "  +===============================================+"
-echo "  |           LexAI - Smart Legal Workbench       |"
-echo "  |           Startup Script (macOS/Linux)        |"
-echo "  +===============================================+"
-echo -e "${NC}"
-
-# ============================================================
-# Step 1: Environment Check
-# ============================================================
-echo -e "${BOLD}[1/5] Checking environment...${NC}"
-echo ""
-
-# --- Java ---
-if ! command -v java &>/dev/null; then
-    echo -e "  ${RED}[X] Java not found. Please install Java 21${NC}"
-    echo "      macOS:  brew install openjdk@21"
-    echo "      Ubuntu: sudo apt install openjdk-21-jdk"
-    echo "      Download: https://adoptium.net/"
-    HAS_ERROR=1
-else
-    JAVA_VER=$(java -version 2>&1 | head -n1)
-    echo -e "  ${GREEN}[OK] $JAVA_VER${NC}"
-fi
-
-# --- Maven ---
-echo -e "  ${GREEN}[OK] Maven: Using bundled Maven Wrapper (mvnw)${NC}"
-
-# --- Node.js ---
-if ! command -v node &>/dev/null; then
-    echo -e "  ${RED}[X] Node.js not found.${NC}"
-    echo "      macOS:  brew install node"
-    echo "      Ubuntu: sudo apt install nodejs npm"
-    echo "      Download: https://nodejs.org/"
-    HAS_ERROR=1
-else
-    NODE_VER=$(node -v)
-    echo -e "  ${GREEN}[OK] Node.js $NODE_VER${NC}"
-fi
-
-# --- npm ---
-if ! command -v npm &>/dev/null; then
-    echo -e "  ${RED}[X] npm not found.${NC}"
-    HAS_ERROR=1
-else
-    NPM_VER=$(npm -v)
-    echo -e "  ${GREEN}[OK] npm $NPM_VER${NC}"
+if [ "$FOREGROUND" -eq 1 ]; then
+    trap cleanup_foreground SIGINT SIGTERM
 fi
 
 echo ""
+echo -e "${CYAN}${BOLD}LexAI - 启动脚本${NC}"
+echo ""
 
-if [ "$HAS_ERROR" -eq 1 ]; then
-    echo -e "  ${RED}WARNING: Missing dependencies. Please install the tools above and retry.${NC}"
+# ---------- 已在运行则跳过 ----------
+if port_in_use "$BACKEND_PORT" && port_in_use "$FRONTEND_PORT"; then
+    log_warn "服务似乎已在运行："
+    echo "  Frontend: http://localhost:${FRONTEND_PORT}"
+    echo "  Backend:  http://localhost:${BACKEND_PORT}/api"
     echo ""
+    echo "如需重启，请先执行: ./stop.sh"
+    exit 0
+fi
+
+if port_in_use "$BACKEND_PORT"; then
+    log_err "端口 ${BACKEND_PORT} 已被占用，请先执行 ./stop.sh"
     exit 1
 fi
 
-echo -e "  ${GREEN}All checks passed!${NC}"
-echo ""
-
-# ============================================================
-# Step 2: Configure .env file
-# ============================================================
-echo -e "${BOLD}[2/5] Checking backend .env config...${NC}"
-
-if [ ! -f "$ENV_FILE" ]; then
-    if [ -f "$ENV_EXAMPLE" ]; then
-        cp "$ENV_EXAMPLE" "$ENV_FILE"
-        echo -e "  ${YELLOW}[i] Copied .env.example -> backend/.env${NC}"
-        echo "      Edit backend/.env to add API keys for real AI features."
-        echo "      Without keys, Mock mode will be used."
-    else
-        echo -e "  ${YELLOW}[i] No .env.example found. Starting with defaults (Mock mode).${NC}"
-    fi
-else
-    echo -e "  ${GREEN}[OK] Found existing backend/.env${NC}"
+if port_in_use "$FRONTEND_PORT"; then
+    log_err "端口 ${FRONTEND_PORT} 已被占用，请先执行 ./stop.sh"
+    exit 1
 fi
+
+# ---------- 环境检查 ----------
+echo -e "${BOLD}[1/5] 检查运行环境${NC}"
+
+if ! resolve_java_home; then
+    log_err "未找到 Java 21。请安装后重试："
+    echo "      macOS:  brew install openjdk@21"
+    echo "      Ubuntu: sudo apt install openjdk-21-jdk"
+    exit 1
+fi
+log_ok "Java: $(java -version 2>&1 | head -n1)"
+
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+    log_err "未找到 Node.js / npm，请先安装 Node.js"
+    exit 1
+fi
+log_ok "Node.js $(node -v), npm $(npm -v)"
 echo ""
 
-# ============================================================
-# Step 3: Load .env environment variables
-# ============================================================
-echo -e "${BOLD}[3/5] Loading environment variables...${NC}"
+# ---------- .env ----------
+echo -e "${BOLD}[2/5] 加载配置${NC}"
+
+if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_EXAMPLE" ]; then
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+    log_warn "已从 .env.example 创建 backend/.env"
+fi
 
 if [ -f "$ENV_FILE" ]; then
     set -a
     # shellcheck disable=SC1090
     source "$ENV_FILE"
     set +a
-    echo -e "  ${GREEN}[OK] Environment variables loaded.${NC}"
+    log_ok "已加载 backend/.env"
 else
-    echo -e "  ${YELLOW}[i] No .env file. Using defaults.${NC}"
+    log_warn "未找到 backend/.env，使用默认配置"
 fi
 echo ""
 
-# ============================================================
-# Step 4: Start Backend
-# ============================================================
-echo -e "${BOLD}[4/5] Starting backend (Spring Boot) on port $BACKEND_PORT...${NC}"
-echo ""
+# ---------- 启动参数 ----------
+echo -e "${BOLD}[3/5] 确定启动模式${NC}"
 
-# Determine startup mode
-BOOT_ARGS=""
-if [ -z "$TENCENT_LLM_API_KEY" ] && [ -z "$DELI_APP_ID" ]; then
-    echo -e "  ${YELLOW}[i] No API keys detected. Starting in Mock mode.${NC}"
-    BOOT_ARGS='-Dspring-boot.run.arguments=--lexai.ai.mode=mock'
+SPRING_ARGS=()
+DB_MODE="MySQL"
+
+if mysql_available; then
+    log_ok "检测到 MySQL (${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3306})"
+else
+    SPRING_ARGS+=(--spring.profiles.active=local)
+    DB_MODE="H2 内存库（local profile，无需 MySQL）"
+    log_warn "MySQL 未运行，自动切换为 H2 内存库模式"
 fi
 
-# Start backend in background
+if [ -z "${TENCENT_LLM_API_KEY:-}" ] && [ -z "${DELI_APP_ID:-}" ]; then
+    SPRING_ARGS+=(--lexai.ai.mode=mock)
+    AI_MODE="Mock"
+    log_warn "未配置 AI 密钥，使用 Mock 模式"
+else
+    AI_MODE="${LEXAI_AI_MODE:-tencent}"
+    log_ok "AI 模式: ${AI_MODE}"
+fi
+echo ""
+
+# ---------- 启动后端 ----------
+echo -e "${BOLD}[4/5] 启动后端 (端口 ${BACKEND_PORT})${NC}"
+
 cd "$BACKEND_DIR"
 chmod +x mvnw
-./mvnw spring-boot:run $BOOT_ARGS > "${BACKEND_DIR}/backend.out.log" 2>"${BACKEND_DIR}/backend.err.log" &
+
+BOOT_ARG=""
+if [ "${#SPRING_ARGS[@]}" -gt 0 ]; then
+    joined="$(IFS=,; echo "${SPRING_ARGS[*]}")"
+    BOOT_ARG="-Dspring-boot.run.arguments=${joined}"
+fi
+
+./mvnw spring-boot:run $BOOT_ARG \
+    > "${BACKEND_DIR}/backend.out.log" 2>"${BACKEND_DIR}/backend.err.log" &
 BACKEND_PID=$!
+save_pid "$BACKEND_PID" backend
 cd "$SCRIPT_DIR"
 
-# Wait for backend
-echo -ne "  ${YELLOW}[i] Waiting for backend to be ready${NC}"
-RETRY=0
+echo -ne "  等待后端就绪"
 BACKEND_READY=0
-while [ $RETRY -lt 60 ]; do
+for _ in $(seq 1 90); do
     sleep 2
-    RETRY=$((RETRY + 1))
-
-    # Check if process is still alive
     if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
         echo ""
-        echo -e "  ${RED}[X] Backend process exited. Check logs:${NC}"
+        log_err "后端启动失败，请查看日志："
         echo "      ${BACKEND_DIR}/backend.err.log"
         echo "      ${BACKEND_DIR}/backend.out.log"
-        break
+        rm -f "${RUN_DIR}/backend.pid"
+        exit 1
     fi
-
-    # Health check
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${BACKEND_PORT}/api/actuator/health" 2>/dev/null || echo "000")
+    HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${BACKEND_PORT}/api/actuator/health" 2>/dev/null || echo "000")"
     if [ "$HTTP_CODE" = "200" ]; then
         BACKEND_READY=1
         echo ""
-        echo -e "  ${GREEN}[OK] Backend is up and running!${NC}"
+        log_ok "后端已就绪"
         break
     fi
     echo -n "."
 done
 
-if [ $RETRY -ge 60 ] && [ $BACKEND_READY -eq 0 ]; then
+if [ "$BACKEND_READY" -eq 0 ]; then
     echo ""
-    echo -e "  ${RED}[!] Backend startup timed out. Check logs.${NC}"
+    log_err "后端启动超时，请查看 ${BACKEND_DIR}/backend.out.log"
+    exit 1
 fi
 echo ""
 
-# ============================================================
-# Step 5: Start Frontend
-# ============================================================
-echo -e "${BOLD}[5/5] Starting frontend (Vite + Vue 3) on port $FRONTEND_PORT...${NC}"
-echo ""
+# ---------- 启动前端 ----------
+echo -e "${BOLD}[5/5] 启动前端 (端口 ${FRONTEND_PORT})${NC}"
 
-# Check node_modules
 if [ ! -d "${FRONTEND_DIR}/node_modules" ]; then
-    echo -e "  ${YELLOW}[i] First launch. Installing frontend dependencies...${NC}"
-    cd "$FRONTEND_DIR"
-    npm install
-    cd "$SCRIPT_DIR"
-    echo -e "  ${GREEN}[OK] Frontend dependencies installed.${NC}"
+    log_warn "首次运行，正在安装前端依赖..."
+    (cd "$FRONTEND_DIR" && npm install)
+    log_ok "前端依赖安装完成"
 fi
 
-# Start frontend in background
 cd "$FRONTEND_DIR"
 npm run dev > "${FRONTEND_DIR}/frontend.out.log" 2>"${FRONTEND_DIR}/frontend.err.log" &
 FRONTEND_PID=$!
+save_pid "$FRONTEND_PID" frontend
 cd "$SCRIPT_DIR"
 
-sleep 5
+sleep 3
 
-# ============================================================
-# Done
-# ============================================================
-echo ""
-echo -e "${CYAN}${BOLD}"
-echo "  +===============================================+"
-echo "  |        LexAI started successfully!            |"
-echo "  +-----------------------------------------------+"
-echo "  |                                               |"
-echo "  |  Frontend:  http://localhost:${FRONTEND_PORT}            |"
-echo "  |  Backend:   http://localhost:${BACKEND_PORT}/api         |"
-echo "  |  Database:  MySQL / Configured via backend/.env |"
-echo "  |                                               |"
-echo "  |  Press Ctrl+C to stop all services            |"
-echo "  |                                               |"
-echo "  +===============================================+"
-echo -e "${NC}"
-
-# Open browser
-if command -v open &>/dev/null; then
-    open "http://localhost:${FRONTEND_PORT}"
-elif command -v xdg-open &>/dev/null; then
-    xdg-open "http://localhost:${FRONTEND_PORT}"
+FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
+if ! curl -s -o /dev/null "http://localhost:${FRONTEND_PORT}/" 2>/dev/null; then
+    if curl -s -o /dev/null "http://localhost:5174/" 2>/dev/null; then
+        FRONTEND_URL="http://localhost:5174"
+        log_warn "5173 被占用，前端运行在 5174"
+    fi
 fi
 
-echo -e "${YELLOW}Logs:${NC}"
-echo "  Backend: ${BACKEND_DIR}/backend.out.log"
-echo "  Frontend: ${FRONTEND_DIR}/frontend.out.log"
 echo ""
-echo -e "${YELLOW}Press Ctrl+C to stop all services.${NC}"
+echo -e "${CYAN}${BOLD}LexAI 已启动${NC}"
+echo "  Frontend : ${FRONTEND_URL}"
+echo "  Backend  : http://localhost:${BACKEND_PORT}/api"
+echo "  Database : ${DB_MODE}"
+echo "  AI Mode  : ${AI_MODE}"
+echo ""
+echo "  日志："
+echo "    backend  -> ${BACKEND_DIR}/backend.out.log"
+echo "    frontend -> ${FRONTEND_DIR}/frontend.out.log"
+echo ""
+echo "  停止服务：./stop.sh"
 
-# Keep running, wait for Ctrl+C
-wait
+if command -v open >/dev/null 2>&1; then
+    open "$FRONTEND_URL"
+elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$FRONTEND_URL"
+fi
+
+if [ "$FOREGROUND" -eq 1 ]; then
+    echo ""
+    log_warn "前台模式：按 Ctrl+C 停止所有服务"
+    wait
+else
+    echo ""
+fi

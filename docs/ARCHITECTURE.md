@@ -97,13 +97,33 @@ LexAI
 
 ## 六、接口约定
 
-当前骨架中预留了以下接口：
+当前已实现的主要接口（2026-06 更新）：
 
-- `GET /api/system/health`
+**系统**
+
+- `GET /api/system/health` — 含 `aiMode`、数据库类型、知识库统计、会话计数
 - `GET /api/system/overview`
+
+**法律 AI**
+
 - `POST /api/legal/consultation`
 - `POST /api/legal/case-analysis`
 - `POST /api/legal/contract-review`
+- `POST /api/legal/contract-draft`
+- `GET /api/legal/sessions` — 分页 + `keyword` 搜索
+- `GET /api/legal/sessions/recent` — Dashboard 最近 AI 活动
+- `GET /api/legal/sessions/{id}`
+
+**合同与待办**
+
+- `GET/POST/PUT/DELETE /api/contracts` 及 `/statistics` 系列
+- `GET/PUT /api/tasks`
+
+**持久化实体（节选）**
+
+- `contracts`、`workspace_tasks`、`legal_sessions`（咨询/分析历史）
+
+详见 [近期功能改动说明.md](./近期功能改动说明.md)。
 
 ## 七、后续建议
 

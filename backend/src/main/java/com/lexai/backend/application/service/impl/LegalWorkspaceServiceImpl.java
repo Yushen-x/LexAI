@@ -13,15 +13,19 @@ import com.lexai.backend.application.dto.response.ContractReviewResponse;
 import com.lexai.backend.application.dto.response.PlatformOverviewResponse;
 import com.lexai.backend.application.port.out.LegalReasoningGateway;
 import com.lexai.backend.application.service.ContractService;
+import com.lexai.backend.application.service.LegalSessionService;
 import com.lexai.backend.application.service.LegalWorkspaceService;
 import com.lexai.backend.application.service.TaskService;
 import com.lexai.backend.common.exception.UserFacingException;
+import com.lexai.backend.common.web.RequestCorrelationFilter;
+import com.lexai.backend.domain.model.LegalScenarioType;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -34,15 +38,18 @@ public class LegalWorkspaceServiceImpl implements LegalWorkspaceService {
     private final LegalReasoningGateway legalReasoningGateway;
     private final TaskService taskService;
     private final ContractService contractService;
+    private final LegalSessionService legalSessionService;
 
     public LegalWorkspaceServiceImpl(
             LegalReasoningGateway legalReasoningGateway,
             TaskService taskService,
-            ContractService contractService
+            ContractService contractService,
+            LegalSessionService legalSessionService
     ) {
         this.legalReasoningGateway = legalReasoningGateway;
         this.taskService = taskService;
         this.contractService = contractService;
+        this.legalSessionService = legalSessionService;
     }
 
     @Override
@@ -69,19 +76,35 @@ public class LegalWorkspaceServiceImpl implements LegalWorkspaceService {
     @Override
     public ConsultationResponse handleConsultation(ConsultationRequest request) {
         // 法律咨询是「即问即答」AI 工具，结果直接展示给用户，不再生成待办（避免污染合同审查待办流）。
-        return invokeGateway(
+        ConsultationResponse response = invokeGateway(
                 "LEGAL_CONSULTATION",
                 summarize(request.question()),
                 () -> legalReasoningGateway.consult(request));
+        persistSession(
+                LegalScenarioType.CONSULTATION,
+                request.question(),
+                request,
+                response,
+                response.confidence()
+        );
+        return response;
     }
 
     @Override
     public CaseAnalysisResponse handleCaseAnalysis(CaseAnalysisRequest request) {
         // 案件分析同上，定位为分析工具，不入待办流。
-        return invokeGateway(
+        CaseAnalysisResponse response = invokeGateway(
                 "CASE_ANALYSIS",
                 summarize(request.caseSummary()),
                 () -> legalReasoningGateway.analyzeCase(request));
+        persistSession(
+                LegalScenarioType.CASE_ANALYSIS,
+                request.caseSummary(),
+                request,
+                response,
+                response.confidence()
+        );
+        return response;
     }
 
     @Override
@@ -168,6 +191,24 @@ public class LegalWorkspaceServiceImpl implements LegalWorkspaceService {
             current = current.getCause();
         }
         return new UserFacingException(HttpStatus.BAD_GATEWAY, "智能分析暂不可用，请稍后重试。", exception);
+    }
+
+    private void persistSession(
+            LegalScenarioType scenarioType,
+            String title,
+            Object input,
+            Object output,
+            Double confidence
+    ) {
+        legalSessionService.saveSession(
+                scenarioType,
+                title,
+                input,
+                output,
+                confidence,
+                MDC.get(RequestCorrelationFilter.TRACE_ID_MDC_KEY),
+                DEFAULT_TASK_INITIATOR
+        );
     }
 
     private void tryCreateOrReuseContractReviewTask(long contractId, ContractResponse contract) {
