@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { copyText } from '@/shared/ui/clipboard';
 
 interface Props {
   items: string[];
@@ -74,24 +75,12 @@ function snippet(text: string) {
 }
 
 async function copy(text: string, idx: number) {
-  try {
-    await navigator.clipboard.writeText(text);
-    copiedIdx.value = idx;
-    setTimeout(() => {
-      if (copiedIdx.value === idx) copiedIdx.value = null;
-    }, 1600);
-  } catch {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch (_) { /* ignore */ }
-    document.body.removeChild(ta);
-    copiedIdx.value = idx;
-    setTimeout(() => {
-      if (copiedIdx.value === idx) copiedIdx.value = null;
-    }, 1600);
-  }
+  const ok = await copyText(text);
+  if (!ok) return;
+  copiedIdx.value = idx;
+  setTimeout(() => {
+    if (copiedIdx.value === idx) copiedIdx.value = null;
+  }, 1600);
 }
 
 function searchUrl(text: string) {

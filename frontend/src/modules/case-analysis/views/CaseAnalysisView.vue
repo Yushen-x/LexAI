@@ -197,6 +197,7 @@ import { computed, reactive, ref } from 'vue';
 import { submitCaseAnalysis } from '@/shared/api/legal';
 import type { CaseAnalysisResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
+import { copyText } from '@/shared/ui/clipboard';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
 import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
 import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
@@ -273,12 +274,10 @@ function applyPreset(preset: { summary: string; evidence: string[] }) {
 
 async function copySuggestedActions() {
   if (!result.value?.suggestedActions) return;
-  try {
-    const text = result.value.suggestedActions.join('\n');
-    await navigator.clipboard.writeText(text);
+  const text = result.value.suggestedActions.join('\n');
+  if (await copyText(text)) {
     toast('建议动作已复制到剪贴板', 'success');
-  } catch (error) {
-    console.error('复制失败:', error);
+  } else {
     toast('复制失败，请重试', 'error');
   }
 }

@@ -213,6 +213,7 @@ import { computed, reactive, ref } from 'vue';
 import { submitConsultation } from '@/shared/api/legal';
 import type { ConsultationResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
+import { copyText } from '@/shared/ui/clipboard';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
 import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
 import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
@@ -314,12 +315,10 @@ function applyPreset(preset: { question: string; facts: string[] }) {
 
 async function copyLegalBasis() {
   if (!result.value?.legalBasis) return;
-  try {
-    const text = result.value.legalBasis.join('\n');
-    await navigator.clipboard.writeText(text);
+  const text = result.value.legalBasis.join('\n');
+  if (await copyText(text)) {
     toast('法律依据已复制到剪贴板', 'success');
-  } catch (error) {
-    console.error('复制失败:', error);
+  } else {
     toast('复制失败，请重试', 'error');
   }
 }

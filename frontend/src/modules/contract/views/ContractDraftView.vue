@@ -196,6 +196,7 @@ import { submitConsultation, submitContractDraft } from '@/shared/api/legal';
 import { createContract, getContract, updateContract } from '@/shared/api/contracts';
 import { CONTRACT_TYPE_OPTIONS } from '@/shared/constants/contractTypes';
 import { toast } from '@/shared/ui/toast';
+import { copyText } from '@/shared/ui/clipboard';
 import type { ContractItem } from '@/shared/types/contracts';
 import type { ContractDraftResponse } from '@/shared/types/legal';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
@@ -506,10 +507,9 @@ const submitForReview = async () => {
 };
 
 const copyContent = async () => {
-  try {
-    await navigator.clipboard.writeText(contractForm.content);
+  if (await copyText(contractForm.content)) {
     toast('已复制到剪贴板', 'success');
-  } catch (error) {
+  } else {
     toast('复制失败，请重试', 'error');
   }
 };
