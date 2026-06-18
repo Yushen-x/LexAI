@@ -608,6 +608,11 @@ onMounted(async () => {
   align-items: center;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
 .title-wrapper {
   display: flex;
   align-items: center;

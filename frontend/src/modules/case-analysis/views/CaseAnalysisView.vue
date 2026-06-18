@@ -32,7 +32,6 @@
             <h3 class="card-title">案情与证据梳理</h3>
             <p class="text-muted text-sm mt-1">输入案件事实与现有证据，进行深度剖析</p>
           </div>
-          <span class="badge badge-success">分析引擎空闲</span>
         </div>
 
         <div class="form-container mt-6">

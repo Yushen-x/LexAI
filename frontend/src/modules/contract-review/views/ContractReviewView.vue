@@ -66,7 +66,6 @@
               }}
             </p>
           </div>
-          <span class="badge badge-success">引擎空闲</span>
         </div>
 
         <div class="form-container mt-6">
