@@ -197,6 +197,7 @@ import { createContract, getContract, updateContract } from '@/shared/api/contra
 import { CONTRACT_TYPE_OPTIONS } from '@/shared/constants/contractTypes';
 import { toast } from '@/shared/ui/toast';
 import { copyText } from '@/shared/ui/clipboard';
+import { sanitizeFileName } from '@/shared/utils/file';
 import type { ContractItem } from '@/shared/types/contracts';
 import type { ContractDraftResponse } from '@/shared/types/legal';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
@@ -514,10 +515,11 @@ const copyContent = async () => {
   }
 };
 
+
 const downloadContent = () => {
   const element = document.createElement('a');
   element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(contractForm.content));
-  element.setAttribute('download', `${contractForm.name}.txt`);
+  element.setAttribute('download', `${sanitizeFileName(contractForm.name)}.txt`);
   element.style.display = 'none';
   document.body.appendChild(element);
   element.click();

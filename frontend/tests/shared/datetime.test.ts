@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRelativeTime } from '@/shared/utils/datetime';
+import { formatDateTime, formatRelativeTime } from '@/shared/utils/datetime';
 
 const NOW = new Date('2026-06-15T12:00:00Z').getTime();
 
@@ -37,5 +37,19 @@ describe('formatRelativeTime', () => {
     const out = formatRelativeTime(iso, NOW);
     expect(out).not.toMatch(/前|刚刚/);
     expect(out).toMatch(/\d/);
+  });
+});
+
+describe('formatDateTime', () => {
+  it('空字符串返回占位符', () => {
+    expect(formatDateTime('')).toBe('—');
+  });
+
+  it('非法时间原样返回', () => {
+    expect(formatDateTime('bad')).toBe('bad');
+  });
+
+  it('合法时间格式化为含年份的绝对时间', () => {
+    expect(formatDateTime('2026-06-15T08:30:00Z')).toContain('2026');
   });
 });

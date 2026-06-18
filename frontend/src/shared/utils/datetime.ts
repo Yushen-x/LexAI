@@ -34,3 +34,20 @@ export function formatRelativeTime(iso: string, now: number = Date.now()): strin
     minute: '2-digit'
   });
 }
+
+/**
+ * 将 ISO 时间格式化为本地「年-月-日 时:分」绝对时间。
+ * - 空值返回占位符；非法时间原样返回。
+ */
+export function formatDateTime(iso: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}

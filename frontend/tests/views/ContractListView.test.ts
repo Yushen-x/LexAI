@@ -7,6 +7,7 @@ import {
   getContract,
   updateContractStatus
 } from '@/shared/api/contracts';
+import { confirmAction } from '@/shared/ui/confirm';
 import type { ContractItem, ContractStatus } from '@/shared/types/contracts';
 
 const push = vi.fn();
@@ -23,10 +24,15 @@ vi.mock('@/shared/api/contracts', () => ({
   updateContractStatus: vi.fn()
 }));
 
+vi.mock('@/shared/ui/confirm', () => ({
+  confirmAction: vi.fn()
+}));
+
 const fetchListMock = vi.mocked(fetchContracts);
 const fetchStatsMock = vi.mocked(fetchContractStatistics);
 const updateStatusMock = vi.mocked(updateContractStatus);
 const getContractMock = vi.mocked(getContract);
+const confirmMock = vi.mocked(confirmAction);
 
 function contract(overrides: Partial<ContractItem> = {}): ContractItem {
   return {
@@ -62,6 +68,8 @@ beforeEach(() => {
   fetchStatsMock.mockReset();
   updateStatusMock.mockReset();
   getContractMock.mockReset();
+  confirmMock.mockReset();
+  confirmMock.mockResolvedValue(true);
   fetchStatsMock.mockResolvedValue({
     total: 1,
     statusDistribution: [{ status: 'DRAFT', count: 1 }],
@@ -105,7 +113,7 @@ describe('ContractListView', () => {
     );
   });
 
-  it('点击「终止」调用 updateContractStatus(TERMINATED)', async () => {
+  it('点击「终止」二次确认通过后调用 updateContractStatus(TERMINATED)', async () => {
     const draft = contract({ id: 7, status: 'DRAFT' });
     fetchListMock.mockResolvedValue(listResult([draft]));
     updateStatusMock.mockResolvedValue({ ...draft, status: 'TERMINATED' as ContractStatus });
@@ -115,7 +123,22 @@ describe('ContractListView', () => {
 
     await actionButton(wrapper, '终止')!.trigger('click');
     await flushPromises();
+    expect(confirmMock).toHaveBeenCalled();
     expect(updateStatusMock).toHaveBeenCalledWith(7, 'TERMINATED');
+  });
+
+  it('终止确认弹窗被取消时不调用接口', async () => {
+    confirmMock.mockResolvedValue(false);
+    const draft = contract({ id: 7, status: 'DRAFT' });
+    fetchListMock.mockResolvedValue(listResult([draft]));
+
+    const wrapper = mount(ContractListView);
+    await flushPromises();
+
+    await actionButton(wrapper, '终止')!.trigger('click');
+    await flushPromises();
+    expect(confirmMock).toHaveBeenCalled();
+    expect(updateStatusMock).not.toHaveBeenCalled();
   });
 
   it('已通过审查的合同可「标记已签署」', async () => {

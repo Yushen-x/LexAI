@@ -116,6 +116,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { fetchTasks } from '@/shared/api/tasks';
 import type { TaskItem, WorkspaceTaskStatus } from '@/shared/types/tasks';
+import { formatDateTime as formatTime } from '@/shared/utils/datetime';
 
 const router = useRouter();
 const loading = ref(false);
@@ -161,19 +162,6 @@ function statusBadgeClass(s: WorkspaceTaskStatus): string {
     default:
       return 'badge-normal';
   }
-}
-
-function formatTime(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function errMessage(e: unknown): string {
