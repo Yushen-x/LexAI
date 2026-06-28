@@ -57,35 +57,41 @@ class MockMvcWorkspaceApiTest {
 
     @Test
     void getLegalSessions_returnsPagedHistoryAfterConsultation() throws Exception {
-        String json = "{\"question\":\"历史持久化测试\",\"facts\":[]}";
+        String uniqueTitle = "历史持久化测试-MockMvc-" + System.nanoTime();
+        String json = "{\"question\":\"" + uniqueTitle + "\",\"facts\":[]}";
         mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/legal/sessions").param("type", "CONSULTATION").param("page", "0").param("size", "5"))
+        mockMvc.perform(get("/legal/sessions")
+                        .param("type", "CONSULTATION")
+                        .param("keyword", uniqueTitle)
+                        .param("page", "0")
+                        .param("size", "5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data.content").isArray())
-                .andExpect(jsonPath("$.data.content[0].title").value("历史持久化测试"))
+                .andExpect(jsonPath("$.data.content[0].title").value(uniqueTitle))
                 .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test
     void getLegalSessions_supportsKeywordSearch() throws Exception {
+        String wageKeyword = "拖欠工资如何维权-MockMvc-" + System.nanoTime();
         mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"拖欠工资如何维权\",\"facts\":[]}"))
+                        .content("{\"question\":\"" + wageKeyword + "\",\"facts\":[]}"))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/legal/consultation").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"question\":\"合同违约赔偿标准\",\"facts\":[]}"))
+                        .content("{\"question\":\"合同违约赔偿标准-MockMvc-" + System.nanoTime() + "\",\"facts\":[]}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/legal/sessions")
                         .param("type", "CONSULTATION")
-                        .param("keyword", "工资")
+                        .param("keyword", wageKeyword)
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
-                .andExpect(jsonPath("$.data.content[0].title").value("拖欠工资如何维权"));
+                .andExpect(jsonPath("$.data.content[0].title").value(wageKeyword));
     }
 
     @Test
