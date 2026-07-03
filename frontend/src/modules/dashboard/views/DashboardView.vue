@@ -598,6 +598,8 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.25;
+  color: #f8fafc;
+  text-shadow: 0 2px 10px rgba(15, 23, 42, 0.28);
 }
 
 .brand-grad {
@@ -612,8 +614,9 @@ onMounted(() => {
 .hero-sub {
   margin: 0 0 1rem 0;
   font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(248, 250, 252, 0.92);
   line-height: 1.6;
+  text-shadow: 0 1px 6px rgba(15, 23, 42, 0.22);
 }
 
 .hero-tags {
@@ -651,12 +654,12 @@ onMounted(() => {
 }
 
 .hero-actions .btn-secondary {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.18);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.46);
 }
 .hero-actions .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.26);
 }
 
 .stats-grid {
