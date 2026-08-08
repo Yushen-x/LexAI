@@ -272,6 +272,7 @@ import { fetchContracts, fetchContractStatistics, getContract, updateContractSta
 import type { ContractStatsSummary } from '@/shared/api/contracts'
 import { CONTRACT_TYPE_VALUES } from '@/shared/constants/contractTypes'
 import type { ContractItem, ContractStatus } from '@/shared/types/contracts'
+import { confirmAction } from '@/shared/ui/confirm'
 import {
   CONTRACT_STATUS_OPTIONS,
   formatContractAmount,
@@ -525,6 +526,17 @@ function openReview(contractId: number): void {
 
 async function doStatusChange(row: ContractItem, target: ContractStatus): Promise<void> {
   if (target === row.status) return
+
+  // 状态流转不可撤销，操作前二次确认；终止为危险操作，按钮标红
+  const isTerminate = target === 'TERMINATED'
+  const confirmed = await confirmAction({
+    title: isTerminate ? '终止合同' : '更新合同状态',
+    message: `确定将合同「${row.name}」更新为「${statusLabel(target)}」吗？此操作会同步台账并触发待办流程。`,
+    confirmText: isTerminate ? '确认终止' : '确认更新',
+    danger: isTerminate
+  })
+  if (!confirmed) return
+
   errorBanner.value = ''
   statusBusyId.value = row.id
   try {

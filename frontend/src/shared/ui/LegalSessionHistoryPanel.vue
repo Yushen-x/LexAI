@@ -57,6 +57,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { fetchLegalSessionDetail, fetchLegalSessions } from '@/shared/api/legal';
 import type { LegalScenarioType, LegalSessionSummary } from '@/shared/types/legal';
+import { formatRelativeTime } from '@/shared/utils/datetime';
 
 const props = defineProps<{
   scenarioType: LegalScenarioType;
@@ -133,19 +134,8 @@ function applySearch(): void {
   void loadSessions(true);
 }
 
-function formatRelative(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return iso;
-  const diff = Date.now() - t;
-  const m = 60_000;
-  const h = 60 * m;
-  const d = 24 * h;
-  if (diff < m) return '刚刚';
-  if (diff < h) return `${Math.floor(diff / m)} 分钟前`;
-  if (diff < d) return `${Math.floor(diff / h)} 小时前`;
-  if (diff < 7 * d) return `${Math.floor(diff / d)} 天前`;
-  return new Date(iso).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit' });
-}
+// 相对时间逻辑统一来自 @/shared/utils/datetime
+const formatRelative = formatRelativeTime;
 
 function refresh(clearKeyword = false): void {
   if (clearKeyword) {

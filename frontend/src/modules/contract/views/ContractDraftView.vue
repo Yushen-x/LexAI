@@ -14,16 +14,16 @@
       </div>
       <div class="header-right">
         <button class="btn btn-secondary mr-3" @click="toggleSidebar">
-          <span class="icon"></span> {{ aiSidebarVisible ? '收拢助手' : '呼出助手' }}
+          {{ aiSidebarVisible ? '收拢助手' : '呼出助手' }}
         </button>
         <button class="btn btn-secondary mr-3" @click="saveDraft" :disabled="isSavingDraft">
-          <span class="icon"></span> {{ isSavingDraft ? '保存中...' : '存草稿' }}
+          {{ isSavingDraft ? '保存中...' : '存草稿' }}
         </button>
         <button class="btn btn-secondary mr-3" @click="submitForReview" :disabled="!contractForm.content.trim() || isSavingDraft">
-          <span class="icon"></span> {{ isSavingDraft ? '提交中...' : '提交审查' }}
+          {{ isSavingDraft ? '提交中...' : '提交审查' }}
         </button>
         <button class="btn btn-primary" @click="generateContract" :disabled="isGenerating">
-          <span class="icon">✨</span> {{ isGenerating ? '生成中...' : '生成合同' }}
+          {{ isGenerating ? '生成中...' : '生成合同' }}
         </button>
       </div>
     </div>
@@ -131,7 +131,7 @@
       <div class="ai-col card flex-col" v-show="aiSidebarVisible">
         <div class="ai-header padding-box border-b">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="card-title text-primary"><span class="icon mr-2">🤖</span>法务专属 AI</h3>
+            <h3 class="card-title text-primary">法务专属 AI</h3>
             <button class="btn-close" @click="toggleSidebar">×</button>
           </div>
           <div class="mode-tabs">
@@ -197,6 +197,7 @@ import { createContract, getContract, updateContract } from '@/shared/api/contra
 import { CONTRACT_TYPE_OPTIONS } from '@/shared/constants/contractTypes';
 import { toast } from '@/shared/ui/toast';
 import { copyText } from '@/shared/ui/clipboard';
+import { sanitizeFileName } from '@/shared/utils/file';
 import type { ContractItem } from '@/shared/types/contracts';
 import type { ContractDraftResponse } from '@/shared/types/legal';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
@@ -319,13 +320,13 @@ const sendAiMessage = async () => {
         parts.push(stripCitations(resp.answer));
       }
       if (resp.recommendations?.length) {
-        parts.push(`✅ 建议\n- ${resp.recommendations.map(stripCitations).join('\n- ')}`);
+        parts.push(`建议\n- ${resp.recommendations.map(stripCitations).join('\n- ')}`);
       }
       if (resp.riskAlerts?.length) {
-        parts.push(`⚠️ 风险提示\n- ${resp.riskAlerts.map(stripCitations).join('\n- ')}`);
+        parts.push(`风险提示\n- ${resp.riskAlerts.map(stripCitations).join('\n- ')}`);
       }
       if (resp.legalBasis?.length) {
-        parts.push(`📚 法律依据\n- ${resp.legalBasis.slice(0, 3).map(stripCitations).join('\n- ')}`);
+        parts.push(`法律依据\n- ${resp.legalBasis.slice(0, 3).map(stripCitations).join('\n- ')}`);
       }
 
       chatMessages.value.push({
@@ -365,7 +366,7 @@ const sendAiMessage = async () => {
       contractForm.content = resp.generatedContent;
       chatMessages.value.push({
         type: 'bot',
-        content: '✅ 已根据你的指令完成修改，并已自动替换左侧正文。'
+        content: '已根据你的指令完成修改，并已自动替换左侧正文。'
       });
     }
   } catch (error: any) {
@@ -514,10 +515,11 @@ const copyContent = async () => {
   }
 };
 
+
 const downloadContent = () => {
   const element = document.createElement('a');
   element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(contractForm.content));
-  element.setAttribute('download', `${contractForm.name}.txt`);
+  element.setAttribute('download', `${sanitizeFileName(contractForm.name)}.txt`);
   element.style.display = 'none';
   document.body.appendChild(element);
   element.click();
@@ -602,6 +604,11 @@ onMounted(async () => {
 }
 
 .header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
   display: flex;
   align-items: center;
 }

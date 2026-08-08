@@ -66,7 +66,6 @@
               }}
             </p>
           </div>
-          <span class="badge badge-success">引擎空闲</span>
         </div>
 
         <div class="form-container mt-6">
@@ -355,6 +354,7 @@ import type { ContractItem, ContractLatestReview, ContractReviewDecision, Contra
 import type { ContractReviewResponse } from '@/shared/types/legal';
 import { toast } from '@/shared/ui/toast';
 import { copyText } from '@/shared/ui/clipboard';
+import { confirmAction } from '@/shared/ui/confirm';
 import AiThinkingPanel from '@/shared/ui/AiThinkingPanel.vue';
 import AiTracePanel from '@/shared/ui/AiTracePanel.vue';
 import ConfidenceBadge from '@/shared/ui/ConfidenceBadge.vue';
@@ -600,6 +600,17 @@ async function saveManualReview() {
     toast('请先关联一份已落库合同', 'warning');
     return;
   }
+
+  // 人工复核结论会驱动后续台账状态与待办闭环，保存前二次确认
+  const decisionLabel =
+    reviewDecisionOptions.find((o) => o.value === reviewDecision.value)?.label ?? '处理结论';
+  const confirmed = await confirmAction({
+    title: '保存人工复核',
+    message: `将以「${decisionLabel}」作为本次人工复核结论并保存，确定吗？`,
+    confirmText: '确认保存',
+    danger: reviewDecision.value === 'NEEDS_REVISION'
+  });
+  if (!confirmed) return;
 
   savingReviewFeedback.value = true;
   try {

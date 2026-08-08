@@ -31,7 +31,7 @@
               :class="{ active: activeNav === item.key }"
               @click="selectNav(item.key)"
             >
-              <span class="icon mr-2">{{ item.icon }}</span>{{ item.label }}
+              <span>{{ item.label }}</span>
               <span v-if="item.key === 'PENDING'" class="count-badge ml-auto">{{ pendingCount }}</span>
             </li>
           </ul>
@@ -116,6 +116,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { fetchTasks } from '@/shared/api/tasks';
 import type { TaskItem, WorkspaceTaskStatus } from '@/shared/types/tasks';
+import { formatDateTime as formatTime } from '@/shared/utils/datetime';
 
 const router = useRouter();
 const loading = ref(false);
@@ -126,12 +127,12 @@ const pendingCount = ref(0);
 const activeNav = ref<string>('PENDING');
 
 const navItems = [
-  { key: 'PENDING', label: '待处理', icon: '⏱️' },
-  { key: 'IN_PROGRESS', label: '处理中', icon: '🔄' },
-  { key: 'SUPERSEDED', label: '已覆盖', icon: '↪' },
-  { key: 'COMPLETED', label: '已完成', icon: '✅' },
-  { key: 'REJECTED', label: '已驳回', icon: '⛔' },
-  { key: 'ALL', label: '全部', icon: '📋' },
+  { key: 'PENDING', label: '待处理' },
+  { key: 'IN_PROGRESS', label: '处理中' },
+  { key: 'SUPERSEDED', label: '已覆盖' },
+  { key: 'COMPLETED', label: '已完成' },
+  { key: 'REJECTED', label: '已驳回' },
+  { key: 'ALL', label: '全部' },
 ];
 
 const statusLabels: Record<WorkspaceTaskStatus, string> = {
@@ -161,19 +162,6 @@ function statusBadgeClass(s: WorkspaceTaskStatus): string {
     default:
       return 'badge-normal';
   }
-}
-
-function formatTime(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function errMessage(e: unknown): string {

@@ -1,5 +1,8 @@
 import type { ContractItem, ContractReviewDecision, ContractStatus } from '@/shared/types/contracts';
 
+// 绝对时间格式化统一来自 datetime 工具，这里再导出以保持既有引用
+export { formatDateTime } from '@/shared/utils/datetime';
+
 export type StatusTone = 'success' | 'warning' | 'danger' | 'muted';
 
 /** 合同状态的下拉选项 / 文案单一来源。 */
@@ -117,20 +120,6 @@ export function formatContractAmount(amount: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(amount);
-}
-
-/** ISO 时间格式化为本地时间；空值返回占位符，非法时间原样返回。 */
-export function formatDateTime(iso: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
 }
 
 export type { ContractReviewDecision };

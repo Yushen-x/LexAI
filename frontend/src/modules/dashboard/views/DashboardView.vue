@@ -179,6 +179,7 @@ import { fetchTasks } from '@/shared/api/tasks';
 import type { LegalScenarioType, LegalSessionSummary, PlatformOverview, SystemHealth } from '@/shared/types/legal';
 import type { TaskItem, WorkspaceTaskType } from '@/shared/types/tasks';
 import DashboardCharts from '@/modules/dashboard/components/DashboardCharts.vue';
+import { formatRelativeTime } from '@/shared/utils/datetime';
 
 const router = useRouter();
 
@@ -216,20 +217,8 @@ function typeShortLabel(t: WorkspaceTaskType): string {
   return m[t] ?? t;
 }
 
-function formatRelative(iso: string): string {
-  if (!iso) return '—';
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return iso;
-  const diff = Date.now() - t;
-  const m = 60_000;
-  const h = 60 * m;
-  const d = 24 * h;
-  if (diff < m) return '刚刚';
-  if (diff < h) return `${Math.floor(diff / m)} 分钟前`;
-  if (diff < d) return `${Math.floor(diff / h)} 小时前`;
-  if (diff < 7 * d) return `${Math.floor(diff / d)} 天前`;
-  return new Date(iso).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
+// 相对时间逻辑统一来自 @/shared/utils/datetime
+const formatRelative = formatRelativeTime;
 
 const adminStats = computed(() => [
   {

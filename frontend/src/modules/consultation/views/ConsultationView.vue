@@ -32,7 +32,6 @@
             <h3 class="card-title">法律咨询分析</h3>
             <p class="text-muted text-sm mt-1">描述您遇到的法律问题及相关事实</p>
           </div>
-          <span class="badge badge-success">系统就绪</span>
         </div>
 
         <div class="form-container mt-6">
